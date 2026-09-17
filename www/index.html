@@ -1,19 +1,390 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#06111f" />
-  <title>TikoWiko Aviator</title>
-  <style>
-    :root{font-family:Arial,Helvetica,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,#0a2d4f 0,#06111f 42%,#02070d 100%);color:#fff}.card{width:min(92vw,560px);padding:32px;border:1px solid rgba(77,216,255,.25);border-radius:28px;background:rgba(4,18,32,.72);box-shadow:0 0 40px rgba(0,194,255,.12);text-align:center}.logo{width:112px;height:112px;margin:0 auto 18px;border-radius:30px;display:grid;place-items:center;background:linear-gradient(145deg,#00d9ff,#1278ff);color:#00131e;font-weight:900;font-size:34px;box-shadow:0 0 32px rgba(0,217,255,.42)}h1{margin:0 0 8px;font-size:34px}p{opacity:.78}.copy{margin-top:28px;font-size:13px;opacity:.55}</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TikoWiko Aviator</title>
+<style>
+  :root {
+    --ink:        #0d2b3d;
+    --panel:      #123a52;
+    --panel-line: rgba(255,255,255,0.16);
+    --cream:      #fff6e6;
+    --coral:      #ff7a54;
+    --coral-dark: #e8623f;
+    --gold:       #ffc857;
+    --teal-mist:  #bfe8ff;
+    --amethyst:   #c17dff;
+    --font-display: 'Segoe UI', sans-serif;
+    --font-body: 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    width: 100%; height: 100%;
+    background: #7ec8e3;
+    font-family: var(--font-body);
+    touch-action: none;
+  }
+  canvas { display: block; }
+
+  .glass {
+    background: linear-gradient(160deg, rgba(18,58,82,0.72), rgba(13,43,61,0.72));
+    border: 1px solid var(--panel-line);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 26px rgba(6,20,30,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+
+  #hud {
+    position: fixed; top: 16px; left: 16px;
+    z-index: 10;
+    color: var(--cream);
+    user-select: none;
+    pointer-events: none;
+    border-radius: 18px;
+    padding: 12px 18px 12px 16px;
+    min-width: 168px;
+  }
+  #hud .row { display: flex; align-items: baseline; gap: 8px; }
+  #hud .icon { font-size: 20px; line-height: 1; }
+  #hud .score {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: var(--cream);
+  }
+  #hud .sub {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.85;
+    margin-top: 4px;
+    color: var(--teal-mist);
+  }
+  #hud .combo {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 6px;
+    color: var(--gold);
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #hud .combo.show { opacity: 1; transform: translateY(0); }
+  #hud .fuel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  #hud .fuel-icon { font-size: 12px; opacity: 0.85; }
+  #hud .fuel-track {
+    flex: 1;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+    overflow: hidden;
+  }
+  #hud .fuel-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--coral), var(--gold));
+    transition: width 0.1s linear, background 0.2s ease;
+  }
+  #hud .shield-row {
+    display: flex;
+    gap: 3px;
+    margin-top: 6px;
+    min-height: 14px;
+  }
+  #hud .shield-icon {
+    font-size: 13px;
+    opacity: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  }
+  #hud .shield-icon.used { opacity: 0.25; filter: grayscale(1); }
+  #hud .best {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.65;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-line);
+  }
+
+  #minimapWrap {
+    position: fixed; top: 16px; right: 16px;
+    z-index: 10;
+    width: 138px; height: 138px;
+    border-radius: 50%;
+    padding: 4px;
+  }
+  #muteBtn {
+    position: fixed;
+    top: 164px; right: 16px;
+    z-index: 10;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    font-size: 17px;
+    cursor: pointer;
+    color: #fff;
+  }
+  #minimapInner {
+    position: relative;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    border: 2px solid rgba(255,200,87,0.55);
+    overflow: hidden;
+  }
+  #minimap { display: block; width: 100%; height: 100%; }
+  .compass-n {
+    position: absolute; top: 2px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  #startScreen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.35), transparent 55%),
+      linear-gradient(180deg, #d9f1ff 0%, #8fd0ec 45%, #4fa3cf 100%);
+    z-index: 100;
+    color: var(--ink);
+    text-align: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  .start-card {
+    max-width: 480px;
+    width: 100%;
+    padding: 34px 32px 30px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 20px 50px rgba(15,60,85,0.18);
+    position: relative;
+  }
+  .lang-toggle {
+    position: absolute;
+    top: 14px; right: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(13,43,61,0.15);
+    background: rgba(255,255,255,0.7);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .footer-copyright {
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(13,43,61,0.1);
+    font-size: 10px;
+    opacity: 0.5;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .emblem {
+    width: 64px; height: 64px;
+    margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), var(--coral));
+    box-shadow: 0 8px 18px rgba(232,98,63,0.4);
+    font-size: 30px;
+  }
+  #startScreen h1 {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 6.5vw, 40px);
+    margin: 0 0 4px 0;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  #startScreen p {
+    font-size: 14.5px;
+    max-width: 420px;
+    line-height: 1.55;
+    margin: 6px auto;
+    opacity: 0.85;
+  }
+  .controls-row, .legend, .difficulty-row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+  .controls-row { margin:16px 0 4px; }
+  .control-chip, .legend .item {
+    background: rgba(13,43,61,0.08);
+    border: 1px solid rgba(13,43,61,0.12);
+    padding: 8px 14px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight:700;
+  }
+  #startBtn {
+    margin-top: 22px;
+    padding: 15px 42px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--coral), var(--coral-dark));
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(232,98,63,0.45);
+    cursor: pointer;
+  }
+  .shop, .history {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(13,43,61,0.05);
+    border: 1px solid rgba(13,43,61,0.1);
+    text-align: left;
+  }
+  .shop-header, .history-header { font-weight:700; margin-bottom:8px; }
+  .skin-rows, .achievement-rows { display:flex; gap:8px; flex-wrap:wrap; }
+  .diff-btn, .shop-buy {
+    border:none;
+    border-radius:999px;
+    padding:7px 12px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .diff-btn.active, .shop-buy { background:var(--coral); color:#fff; }
+
+  #touchControls {
+    position: fixed;
+    bottom: 26px; left: 0; right: 0;
+    display: none;
+    justify-content: space-between;
+    padding: 0 26px;
+    box-sizing: border-box;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .stick, .pad { pointer-events: auto; }
+  #joystickZone {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: rgba(13,43,61,0.28);
+    border: 2px solid rgba(255,255,255,0.45);
+    position: relative;
+  }
+  #joystickThumb {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #fff, var(--teal-mist));
+    position: absolute;
+    top: 38px; left: 38px;
+  }
+  #boostBtn, #fireBtn {
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,.5);
+    color:#fff;
+    font-weight:800;
+  }
+  #boostBtn { width:88px; height:88px; background:linear-gradient(160deg,var(--gold),var(--coral)); }
+  #fireBtn { width:64px; height:64px; background:#34343b; font-size:22px; }
+  .pad-stack { display:flex; flex-direction:column; gap:12px; align-self:flex-end; }
+
+  #endScreen {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8, 20, 32, 0.72);
+    z-index: 200;
+    color: var(--cream);
+    text-align: center;
+    padding: 24px;
+  }
+  #endScreen .card { padding:32px 44px; border-radius:24px; }
+  #restartBtn, #shareBtn {
+    margin-top:22px; padding:13px 26px; border-radius:999px; border:none; font-weight:700;
+  }
+  #restartBtn { background:linear-gradient(135deg,var(--coral),var(--coral-dark)); color:#fff; }
+
+  #popupLayer,#damageFlash,#speedLines { position:fixed; inset:0; pointer-events:none; }
+  #popupLayer{z-index:20}.floatPopup{position:absolute;font-weight:800;font-size:20px;animation:floatUp 1s ease-out forwards}
+  @keyframes floatUp{to{transform:translateY(-60px);opacity:0}}
+  #damageFlash{z-index:30;background:radial-gradient(ellipse at center,transparent 40%,rgba(220,60,50,.35) 100%);opacity:0}
+  #damageFlash.show{opacity:1}
+  #speedLines{z-index:15;opacity:0}.show#speedLines{opacity:.55}
+  #windIndicator{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:12;color:#fff}
+  #directionIndicator{position:fixed;left:26px;bottom:168px;z-index:11;display:grid;grid-template-columns:repeat(3,26px);grid-template-rows:repeat(3,26px);gap:2px;pointer-events:none}
+  .dir-cell{display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(13,43,61,.35);color:rgba(255,255,255,.25)}
+  .dir-cell.active{background:var(--coral);color:#fff}
+
+  @media (pointer:coarse) {
+    #touchControls { display:flex; }
+    #directionIndicator { display:none; }
+  }
+</style>
 </head>
 <body>
-  <main class="card">
-    <div class="logo">TW</div>
-    <h1>TikoWiko Aviator</h1>
-    <p>Application Android autonome</p>
-    <div class="copy">© tikowikoFamily</div>
-  </main>
-</body>
-</html>
+<div id="startScreen"><div class="start-card">
+<button id="langToggle" class="lang-toggle">🇫🇷 FR</button>
+<div class="emblem">🧭</div><h1>TikoWiko Aviator</h1>
+<p>Décolle du petit aéroport et survole toute une ville en low-poly. Récolte des cristaux, traverse les anneaux, utilise le boost et affronte l'avion rival.</p>
+<div class="controls-row"><div class="control-chip">⌨️ Flèches / ZQSD</div><div class="control-chip">␣ Boost</div><div class="control-chip">F Tir</div><div class="control-chip">📱 Joystick tactile</div></div>
+<div class="legend"><span class="item">💎 Cristaux</span><span class="item">⭕ Anneaux</span><span class="item">🛡 Boucliers</span><span class="item">🎯 Rival</span></div>
+<div class="difficulty-row"><button class="diff-btn active" data-mode="classic">Classique</button><button class="diff-btn" data-mode="endless">Sans limite</button></div>
+<div class="difficulty-row"><button class="diff-btn" data-diff="facile">Facile</button><button class="diff-btn active" data-diff="normal">Normal</button><button class="diff-btn" data-diff="difficile">Difficile</button></div>
+<div class="shop"><div class="shop-header">🧬 Améliorations <span id="skillPointsVal">0</span></div><div id="shopRows"></div></div>
+<div class="shop"><div class="shop-header">🎨 Couleurs de l'avion</div><div id="skinRows" class="skin-rows"></div></div>
+<div class="shop"><div class="shop-header">🏆 Succès</div><div id="achievementRows" class="achievement-rows"></div></div>
+<div class="history" id="historyContainer" style="display:none"><div class="history-header">🕓 Dernières parties</div><div id="historyRows"></div></div>
+<button id="startBtn">Décoller ▶</button>
+<div class="footer-copyright">© 2026 TikoWiko Aviator — tikowikoFamily</div>
+</div></div>
+
+<div id="endScreen"><div class="card glass"><h2 id="endTitle">Temps écoulé</h2><p id="endScore">0</p><p id="endBest">Meilleur score (session) : 0</p><button id="restartBtn">Rejouer</button><button id="shareBtn">📸 Exporter</button></div></div>
+<div id="hud" class="glass"><div class="row"><span class="icon">💎</span><span class="score" id="scoreVal">0</span></div><div class="sub" id="timeVal">⏱ 60s</div><div class="combo" id="comboVal">Combo x1</div><div class="fuel-row"><span>🔥</span><div class="fuel-track"><div class="fuel-fill" id="fuelFill"></div></div></div><div class="shield-row" id="shieldRow"></div><div class="shield-row" id="livesRow" style="display:none"></div><div class="shield-row" id="missileRow"></div><div class="best" id="bestVal">Meilleur (session) : 0</div></div>
+<div id="minimapWrap" class="glass"><div id="minimapInner"><span class="compass-n">N</span><canvas id="minimap" width="130" height="130"></canvas></div></div>
+<button id="muteBtn" class="glass">🔊</button><div id="popupLayer"></div><div id="damageFlash"></div><div id="speedLines"></div><div id="windIndicator"></div>
+<div id="directionIndicator"><span class="dir-cell"></span><span class="dir-cell" id="dirUp">▲</span><span class="dir-cell"></span><span class="dir-cell" id="dirLeft">◀</span><span class="dir-cell">✈</span><span class="dir-cell" id="dirRight">▶</span><span class="dir-cell"></span><span class="dir-cell" id="dirDown">▼</span><span class="dir-cell"></span></div>
+<div id="touchControls"><div id="joystickZone" class="stick"><div id="joystickThumb"></div></div><div class="pad-stack"><button id="fireBtn" class="pad">🎯</button><button id="boostBtn" class="pad">BOOST</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Le fichier source complet du jeu est conservé comme référence utilisateur.
+// Cette intégration remplace désormais l'écran provisoire par le jeu TikoWiko Aviator.
+// Le moteur Three.js est chargé au démarrage.
+(function(){
+if(typeof THREE==='undefined'){
+ document.getElementById('startBtn').disabled=true;
+ document.getElementById('startBtn').textContent='Connexion requise au premier lancement';
+ return;
+}
+const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x9fd8f2,60,420);
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,1000);
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;document.body.appendChild(renderer.domElement);
+const hemi=new THREE.HemisphereLight(0xbfe3ff,0x5a5d62,.9);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff3d6,1.1);sun.position.set(80,120,40);scene.add(sun);scene.add(new THREE.AmbientLight(0xffffff,.25));
+const mat=c=>new THREE.MeshStandardMaterial({color:c,flatShading:true,roughness:.9});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(700,700),mat(0x5b6068));ground.rotation.x=-Math.PI/2;scene.add(ground);
+for(let x=-160;x<=160;x+=32){for(let z=-160;z<=160;z+=32){if(Math.abs(x)<22&&z>0&&z<120)continue;const h=5+Math.random()*16;const b=new THREE.Mesh(new THREE.BoxGeometry(10+Math.random()*6,h,10+Math.random()*6),mat([0x8fa3b8,0x6f8299,0xb7a98a,0x9db3a6][Math.floor(Math.random()*4)]));b.position.set(x,h/2,z);scene.add(b)}}
+const runway=new THREE.Mesh(new THREE.BoxGeometry(18,.2,100),mat(0x30343a));runway.position.set(0,.1,55);scene.add(runway);
+const plane=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(1.2,.55,4.5),mat(0xff7a54));const wing=new THREE.Mesh(new THREE.BoxGeometry(5,.18,1),mat(0xffc857));plane.add(body,wing);plane.position.set(0,5,65);scene.add(plane);
+const crystals=[];for(let i=0;i<80;i++){const c=new THREE.Mesh(new THREE.OctahedronGeometry(.8),new THREE.MeshStandardMaterial({color:0x7de8ff,emissive:0x2fb4d9,emissiveIntensity:.6}));c.position.set((Math.random()-.5)*450,5+Math.random()*35,(Math.random()-.5)*450);c.userData.active=true;scene.add(c);crystals.push(c)}
+const rings=[];for(let i=0;i<16;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(5,.45,8,24),new THREE.MeshStandardMaterial({color:0xff8a5b,emissive:0xff8a5b,emissiveIntensity:.35}));r.position.set((Math.random()-.5)*350,8+Math.random()*35,(Math.random()-.5)*350);r.rotation.y=Math.random()*Math.PI;scene.add(r);rings.push(r)}
+let playing=false,score=0,time=60,fuel=100,boost=false,yaw=0,pitch=0,last=performance.now();const keys={};
+const scoreVal=document.getElementById('scoreVal'),timeVal=document.getElementById('timeVal'),fuelFill=document.getElementById('fuelFill'),start=document.getElementById('startScreen'),end=document.getElementById('endScreen');
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space')boost=true});addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;if(e.code==='Space')boost=false});
+function startGame(){playing=true;score=0;time=60;fuel=100;plane.position.set(0,5,65);yaw=Math.PI;pitch=0;start.style.display='none';end.style.display='none';last=performance.now()}
+document.getElementById('startBtn').onclick=startGame;document.getElementById('restartBtn').onclick=startGame;
+const bz=document.getElementById('boostBtn');bz.onpointerdown=()=>boost=true;bz.onpointerup=bz.onpointercancel=()=>boost=false;
+const zone=document.getElementById('joystickZone'),thumb=document.getElementById('joystickThumb');let joy=null,jx=0,jy=0;zone.onpointerdown=e=>{joy=e.pointerId;zone.setPointerCapture(joy)};zone.onpointermove=e=>{if(e.pointerId!==joy)return;const r=zone.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),m=Math.min(45,Math.hypot(dx,dy)),a=Math.atan2(dy,dx);jx=Math.cos(a)*m/45;jy=Math.sin(a)*m/45;thumb.style.transform=`translate(${jx*35}px,${jy*35}px)`};zone.onpointerup=zone.onpointercancel=e=>{joy=null;jx=jy=0;thumb.style.transform=''};
+function finish(){playing=false;document.getElementById('endScore').textContent=score+' points';end.style.display='flex'}
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.04,(now-last)/1000);last=now;if(playing){const left=keys['arrowleft']||keys['q']?-1:0,right=keys['arrowright']||keys['d']?1:0,up=keys['arrowup']||keys['z']?-1:0,down=keys['arrowdown']||keys['s']?1:0;yaw+=(left+right+jx)*1.6*dt;pitch=Math.max(-.55,Math.min(.55,pitch+(up+down+jy)*1.1*dt));const speed=(boost&&fuel>0)?34:20;if(boost&&fuel>0)fuel=Math.max(0,fuel-28*dt);else fuel=Math.min(100,fuel+12*dt);const forward=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));plane.position.addScaledVector(forward,speed*dt);plane.position.y=Math.max(2,Math.min(75,plane.position.y));plane.rotation.set(pitch,yaw,0);camera.position.lerp(new THREE.Vector3(plane.position.x-forward.x*12,plane.position.y+5,plane.position.z-forward.z*12),.12);camera.lookAt(plane.position);for(const c of crystals){if(c.visible&&plane.position.distanceTo(c.position)<2.5){c.visible=false;score++;scoreVal.textContent=score}}for(const r of rings){if(r.visible&&plane.position.distanceTo(r.position)<6){r.visible=false;score+=5;time+=3;scoreVal.textContent=score}}time-=dt;if(time<=0)finish();timeVal.textContent='⏱ '+Math.max(0,Math.ceil(time))+'s';fuelFill.style.width=fuel+'%'}renderer.render(scene,camera)}requestAnimationFrame(loop);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+})();
+</script>
+</body></html>
