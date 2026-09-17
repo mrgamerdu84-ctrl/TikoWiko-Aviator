@@ -1,4 +1,3710 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TikoWiko Aviator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #0d2b3d;
+    --panel:      #123a52;
+    --panel-line: rgba(255,255,255,0.16);
+    --cream:      #fff6e6;
+    --coral:      #ff7a54;
+    --coral-dark: #e8623f;
+    --gold:       #ffc857;
+    --teal-mist:  #bfe8ff;
+    --amethyst:   #c17dff;
+    --font-display: 'Baloo 2', 'Segoe UI', sans-serif;
+    --font-body: 'Nunito', 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    width: 100%; height: 100%;
+    background: #7ec8e3;
+    font-family: var(--font-body);
+    touch-action: none;
+  }
+  canvas { display: block; }
+
+  /* ---------- glass panel base ---------- */
+  .glass {
+    background: linear-gradient(160deg, rgba(18,58,82,0.72), rgba(13,43,61,0.72));
+    border: 1px solid var(--panel-line);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 26px rgba(6,20,30,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; top: 16px; left: 16px;
+    z-index: 10;
+    color: var(--cream);
+    user-select: none;
+    pointer-events: none;
+    border-radius: 18px;
+    padding: 12px 18px 12px 16px;
+    min-width: 168px;
+  }
+  #hud .row { display: flex; align-items: baseline; gap: 8px; }
+  #hud .icon { font-size: 20px; line-height: 1; }
+  #hud .score {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: var(--cream);
+  }
+  #hud .sub {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.85;
+    margin-top: 4px;
+    color: var(--teal-mist);
+  }
+  #hud .combo {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 6px;
+    color: var(--gold);
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #hud .combo.show { opacity: 1; transform: translateY(0); }
+  #hud .fuel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  #hud .fuel-icon { font-size: 12px; opacity: 0.85; }
+  #hud .fuel-track {
+    flex: 1;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+    overflow: hidden;
+  }
+  #hud .fuel-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--coral), var(--gold));
+    transition: width 0.1s linear, background 0.2s ease;
+  }
+  #hud .shield-row {
+    display: flex;
+    gap: 3px;
+    margin-top: 6px;
+    min-height: 14px;
+  }
+  #hud .shield-icon {
+    font-size: 13px;
+    opacity: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  }
+  #hud .shield-icon.used { opacity: 0.25; filter: grayscale(1); }
+  #hud .best {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.65;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-line);
+  }
+
+  /* ---------- Minimap ---------- */
+  #minimapWrap {
+    position: fixed; top: 16px; right: 16px;
+    z-index: 10;
+    width: 138px; height: 138px;
+    border-radius: 50%;
+    padding: 4px;
+  }
+  #muteBtn {
+    position: fixed;
+    top: 164px; right: 16px;
+    z-index: 10;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    font-size: 17px;
+    cursor: pointer;
+    color: #fff;
+  }
+  #minimapInner {
+    position: relative;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    border: 2px solid rgba(255,200,87,0.55);
+    overflow: hidden;
+  }
+  #minimap { display: block; width: 100%; height: 100%; }
+  .compass-n {
+    position: absolute; top: 2px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ---------- Start screen ---------- */
+  #startScreen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.35), transparent 55%),
+      linear-gradient(180deg, #d9f1ff 0%, #8fd0ec 45%, #4fa3cf 100%);
+    z-index: 100;
+    color: var(--ink);
+    text-align: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  .start-card {
+    max-width: 480px;
+    width: 100%;
+    padding: 34px 32px 30px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 20px 50px rgba(15,60,85,0.18);
+    position: relative;
+  }
+  .lang-toggle {
+    position: absolute;
+    top: 14px; right: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(13,43,61,0.15);
+    background: rgba(255,255,255,0.7);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .i18n-note {
+    margin-top: 8px;
+    font-size: 10px;
+    opacity: 0.55;
+    line-height: 1.4;
+  }
+  .footer-copyright {
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(13,43,61,0.1);
+    font-size: 10px;
+    opacity: 0.5;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .emblem {
+    width: 64px; height: 64px;
+    margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), var(--coral));
+    box-shadow: 0 8px 18px rgba(232,98,63,0.4);
+    font-size: 30px;
+    animation: bob 3.2s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+  #startScreen h1 {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 6.5vw, 40px);
+    margin: 0 0 4px 0;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+  .tagline {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--coral-dark);
+    margin-bottom: 14px;
+  }
+  #startScreen p {
+    font-size: 14.5px;
+    max-width: 420px;
+    line-height: 1.55;
+    margin: 6px auto;
+    opacity: 0.85;
+  }
+  .controls-row {
+    display: flex;
+    gap: 10px;
+    margin: 16px 0 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .control-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(13,43,61,0.08);
+    border: 1px solid rgba(13,43,61,0.12);
+    padding: 8px 14px;
+    border-radius: 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: left;
+  }
+  .control-chip .k {
+    font-size: 16px;
+  }
+
+  #startBtn {
+    margin-top: 22px;
+    padding: 15px 42px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--coral), var(--coral-dark));
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(232,98,63,0.45);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  #startBtn:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(232,98,63,0.5); }
+  #startBtn:active { transform: scale(0.95); }
+
+  .contest-badge {
+    margin-top: 14px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(13,43,61,0.05);
+    border: 1px dashed rgba(13,43,61,0.25);
+    color: rgba(13,43,61,0.55);
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: not-allowed;
+    user-select: none;
+  }
+
+  .ad-slot {
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(13,43,61,0.04),
+      rgba(13,43,61,0.04) 8px,
+      rgba(13,43,61,0.08) 8px,
+      rgba(13,43,61,0.08) 16px
+    );
+    border: 1px dashed rgba(13,43,61,0.2);
+    color: rgba(13,43,61,0.45);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: not-allowed;
+    user-select: none;
+  }
+
+  .shop {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(13,43,61,0.05);
+    border: 1px solid rgba(13,43,61,0.1);
+    text-align: left;
+  }
+  .shop-header {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .shop-header span { color: var(--coral-dark); }
+  .shop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px solid rgba(13,43,61,0.08);
+  }
+  .shop-row:first-of-type { border-top: none; }
+  .shop-icon { font-size: 15px; width: 20px; text-align: center; }
+  .shop-label-wrap { flex: 1; min-width: 0; }
+  .shop-label { font-size: 12px; font-weight: 700; color: var(--ink); }
+  .shop-value { font-size: 10.5px; opacity: 0.65; }
+  .shop-dots { display: flex; gap: 3px; margin: 0 4px; }
+  .shop-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(13,43,61,0.15); }
+  .shop-dot.filled { background: var(--coral); }
+  .shop-buy {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 999px;
+    background: var(--coral);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .shop-buy:disabled {
+    background: rgba(13,43,61,0.15);
+    color: rgba(13,43,61,0.4);
+    cursor: not-allowed;
+  }
+  .shop-note {
+    margin-top: 8px;
+    font-size: 10px;
+    opacity: 0.55;
+    line-height: 1.4;
+  }
+
+  .skin-rows {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .skin-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px;
+    font-family: var(--font-body);
+  }
+  .skin-swatch .swatch-dot {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.15);
+  }
+  .skin-swatch.selected .swatch-dot {
+    border-color: var(--ink);
+  }
+  .skin-swatch.locked .swatch-dot {
+    opacity: 0.35;
+    filter: grayscale(0.6);
+  }
+  .skin-swatch .swatch-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--ink);
+    opacity: 0.75;
+    text-align: center;
+  }
+
+  .achievement-rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    gap: 8px;
+  }
+  .achievement-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    background: rgba(13,43,61,0.05);
+  }
+  .achievement-badge .a-icon {
+    font-size: 18px;
+    filter: grayscale(1);
+    opacity: 0.35;
+  }
+  .achievement-badge.unlocked .a-icon {
+    filter: none;
+    opacity: 1;
+  }
+  .achievement-badge .a-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: var(--ink);
+    opacity: 0.7;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .legend {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend .item {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(13,43,61,0.06);
+    border: 1px solid rgba(13,43,61,0.1);
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 3px rgba(255,255,255,0.4); }
+
+  /* ---------- Touch controls ---------- */
+  #touchControls {
+    position: fixed;
+    bottom: 26px; left: 0; right: 0;
+    display: none;
+    justify-content: space-between;
+    padding: 0 26px;
+    box-sizing: border-box;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .stick, .pad { pointer-events: auto; }
+  #joystickZone {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: rgba(13,43,61,0.28);
+    border: 2px solid rgba(255,255,255,0.45);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+    position: relative;
+  }
+  #joystickThumb {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #fff, var(--teal-mist));
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    position: absolute;
+    top: 38px; left: 38px;
+  }
+  #boostBtn {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), var(--coral));
+    border: 2px solid rgba(255,255,255,0.55);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 8px 18px rgba(232,98,63,0.4);
+  }
+  .pad-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    align-self: flex-end;
+  }
+  #fireBtn {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #4a4d52, #2c2c34);
+    border: 2px solid rgba(255,255,255,0.4);
+    font-size: 22px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+  }
+
+  /* ---------- End screen ---------- */
+  #endScreen {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8, 20, 32, 0.72);
+    z-index: 200;
+    color: var(--cream);
+    text-align: center;
+    overflow-y: auto;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  #endScreen .card {
+    padding: 32px 44px;
+    border-radius: 24px;
+    min-width: 280px;
+  }
+  #endScreen h2 {
+    font-family: var(--font-display);
+    margin: 0 0 4px 0;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--gold);
+  }
+  #endScore {
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 800;
+    margin: 10px 0 2px;
+    color: var(--cream);
+  }
+  #endBest {
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.75;
+    margin: 4px 0 0;
+  }
+  #restartBtn {
+    margin-top: 22px;
+    padding: 13px 34px;
+    font-family: var(--font-display);
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--coral), var(--coral-dark));
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(232,98,63,0.4);
+  }
+
+  .end-btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  #shareBtn {
+    margin-top: 22px;
+    padding: 13px 26px;
+    font-family: var(--font-display);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+  }
+
+  /* ---------- Difficulty selector ---------- */
+  .difficulty-row {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .difficulty-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    opacity: 0.75;
+  }
+  .difficulty-options {
+    display: flex;
+    gap: 6px;
+    background: rgba(13,43,61,0.06);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .diff-btn {
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(13,43,61,0.55);
+    cursor: pointer;
+  }
+  .diff-btn.active {
+    background: var(--coral);
+    color: #fff;
+  }
+
+  /* ---------- Run history ---------- */
+  .history {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(13,43,61,0.05);
+    border: 1px solid rgba(13,43,61,0.1);
+    text-align: left;
+  }
+  .history-header {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    padding: 3px 0;
+    color: rgba(13,43,61,0.7);
+  }
+  .history-row .h-score { font-weight: 700; color: var(--ink); }
+
+  #popupLayer {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    overflow: hidden;
+  }
+  .floatPopup {
+    position: absolute;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    animation: floatUp 1s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-60px); opacity: 0; }
+  }
+
+  #damageFlash {
+    position: fixed; inset: 0;
+    z-index: 30;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(220,60,50,0.35) 100%);
+    opacity: 0;
+    transition: opacity 0.12s ease-out;
+  }
+  #damageFlash.show { opacity: 1; }
+
+  #speedLines {
+    position: fixed; inset: 0;
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    background:
+      repeating-conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(255,255,255,0.05) 0deg 1.2deg,
+        transparent 1.2deg 9deg
+      );
+    mix-blend-mode: screen;
+    animation: speedSpin 2.2s linear infinite;
+  }
+  #speedLines.show { opacity: 0.55; }
+
+  #windIndicator {
+    position: fixed;
+    top: 16px; left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    z-index: 12;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: rgba(13,43,61,0.55);
+    color: #dff3ff;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    white-space: nowrap;
+  }
+  #windIndicator.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ---------- Direction indicator: shows current pitch/yaw input ---------- */
+  #directionIndicator {
+    position: fixed;
+    left: 26px;
+    bottom: 168px;
+    z-index: 11;
+    display: grid;
+    grid-template-columns: repeat(3, 26px);
+    grid-template-rows: repeat(3, 26px);
+    gap: 2px;
+    pointer-events: none;
+  }
+  #directionIndicator .dir-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 6px;
+    background: rgba(13,43,61,0.35);
+    color: rgba(255,255,255,0.25);
+    transition: background 0.1s ease, color 0.1s ease, transform 0.1s ease;
+  }
+  #directionIndicator .dir-center {
+    background: transparent;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+  }
+  #directionIndicator .dir-cell.active {
+    background: var(--coral);
+    color: #fff;
+    transform: scale(1.12);
+  }
+  #speedLines::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(10,20,30,0.28) 100%);
+  }
+  @keyframes speedSpin {
+    0% { transform: scale(1.15) rotate(0deg); }
+    100% { transform: scale(1.15) rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <div class="start-card">
+    <button id="langToggle" class="lang-toggle" title="Switch language / Changer de langue">🇫🇷 FR</button>
+    <div class="emblem">🧭</div>
+    <div class="tagline" data-i18n="tagline">Exploration low-poly</div>
+    <h1>TikoWiko Aviator</h1>
+    <p data-i18n="intro">Décolle du petit aéroport et survole toute une ville en low-poly. Récolte des cristaux entre les gratte-ciel, enchaîne les combos, traverse les anneaux pour gagner du temps, franchis les anneaux violets pour obtenir des missiles auto-téléguidés, et surfe les colonnes d'air pour grimper vite. Le boost consomme du carburant (jauge en jeu) qui se recharge tout seul.</p>
+    <div class="controls-row">
+      <div class="control-chip"><span class="k">⌨️</span> <span data-i18n="chip1">Flèches / ZQSD pour diriger</span></div>
+      <div class="control-chip"><span class="k">␣</span> <span data-i18n="chip2">Espace pour booster</span></div>
+      <div class="control-chip"><span class="k">F</span> <span data-i18n="chip3">F pour tirer sur l'avion rival</span></div>
+      <div class="control-chip"><span class="k">📱</span> <span data-i18n="chip4">Joystick + boutons tactiles</span></div>
+    </div>
+    <div class="legend">
+      <span class="item"><span class="dot" style="background:#7de8ff"></span>Cristal · 1 pt</span>
+      <span class="item"><span class="dot" style="background:#c17dff"></span>Rare · 3 pts</span>
+      <span class="item"><span class="dot" style="background:#ffd75e"></span>Légendaire · 5 pts</span>
+      <span class="item"><span class="dot" style="background:#ff8a5b"></span>Anneau · bonus temps/points</span>
+      <span class="item"><span class="dot" style="background:#dff3ff"></span>Colonne d'air · monte vite</span>
+      <span class="item"><span class="dot" style="background:#6ee7d8"></span>Aimant · attire les cristaux</span>
+      <span class="item"><span class="dot" style="background:#c0504d"></span>Rocher · casse le combo, -2s</span>
+      <span class="item"><span class="dot" style="background:#c17dff"></span>Caisse mystère · effet aléatoire</span>
+      <span class="item"><span class="dot" style="background:#6ee7d8"></span>Bouclier · encaisse un choc</span>
+      <span class="item"><span class="dot" style="background:#c0504d"></span>Avion rival · vole vers un butin, abats-le (F ou 🎯)</span>
+      <span class="item"><span class="dot" style="background:#ffc857"></span>Butin · l'ennemi le vise, ne le laisse pas l'atterrir</span>
+      <span class="item"><span class="dot" style="background:#c17dff"></span>Anneau violet · missile auto-téléguidé</span>
+      <span class="item"><span class="dot" style="background:#ffe08a"></span>Colis parachute · +25 pts</span>
+    </div>
+    <div class="i18n-note" data-i18n="i18n_note">Le résumé ci-dessus est disponible en français/anglais ; le détail des boutiques reste en français pour le moment.</div>
+    <div class="difficulty-row">
+      <span class="difficulty-label" data-i18n="mode_label">Mode</span>
+      <div class="difficulty-options" id="modeOptions">
+        <button class="diff-btn active" data-mode="classic" data-i18n="mode_classic">Classique (60s)</button>
+        <button class="diff-btn" data-mode="endless" data-i18n="mode_endless">Sans limite ❤️×3</button>
+      </div>
+    </div>
+    <div class="difficulty-row">
+      <span class="difficulty-label" data-i18n="diff_label">Difficulté</span>
+      <div class="difficulty-options" id="difficultyOptions">
+        <button class="diff-btn" data-diff="facile" data-i18n="diff_easy">Facile</button>
+        <button class="diff-btn active" data-diff="normal" data-i18n="diff_normal">Normal</button>
+        <button class="diff-btn" data-diff="difficile" data-i18n="diff_hard">Difficile</button>
+      </div>
+    </div>
+    <div class="shop" id="shopContainer">
+      <div class="shop-header"><span data-i18n="shop_header">🧬 Améliorations</span> <span id="skillPointsVal">0</span> <span data-i18n="pts_label">pts de compétence</span></div>
+      <div id="shopRows"></div>
+      <div class="shop-note" data-i18n="shop_note">Gagnés en récoltant des cristaux en vol (1 pt commun, 3 pts rare, 5 pts légendaire) — conservés tant que tu ne recharges pas la page.</div>
+    </div>
+    <div class="shop" id="skinShop">
+      <div class="shop-header" data-i18n="skin_header">🎨 Couleurs de l'avion</div>
+      <div id="skinRows" class="skin-rows"></div>
+    </div>
+    <div class="shop" id="achievementsShop">
+      <div class="shop-header" data-i18n="achievements_header">🏆 Succès</div>
+      <div id="achievementRows" class="achievement-rows"></div>
+    </div>
+    <div class="history" id="historyContainer" style="display:none;">
+      <div class="history-header" data-i18n="history_header">🕓 Dernières parties</div>
+      <div id="historyRows"></div>
+    </div>
+    <button id="startBtn" data-i18n="start_btn">Décoller ▶</button>
+    <div class="contest-badge" title="Nécessite un compte annonceur (AdSense/AdMob) + un backend + des règles de concours légales avant activation" data-i18n="contest_badge">
+      🎁 Concours hebdomadaire — cagnotte financée par les pubs — Bientôt disponible
+    </div>
+    <div class="ad-slot" title="Emplacement réservé — à connecter à un compte annonceur (AdSense/AdMob)" data-i18n="ad_slot">
+      Emplacement publicité (non connecté)
+    </div>
+    <div class="footer-copyright">© 2026 TikoWiko Aviator — <span data-i18n="confidential">Projet confidentiel</span> — Contact : mrgamerdu84@gmail.com</div>
+  </div>
+</div>
+
+<div id="endScreen">
+  <div class="card glass">
+    <h2 id="endTitle">Temps écoulé</h2>
+    <p id="endScore">0</p>
+    <p id="endBest">Meilleur score (session) : 0</p>
+    <div class="end-btn-row">
+      <button id="restartBtn" data-i18n="restart_btn">Rejouer</button>
+      <button id="shareBtn" data-i18n="share_btn">📸 Exporter</button>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="glass">
+  <div class="row"><span class="icon">💎</span><span class="score" id="scoreVal">0</span></div>
+  <div class="sub" id="timeVal">⏱ 60s</div>
+  <div class="combo" id="comboVal">Combo x1</div>
+  <div class="fuel-row">
+    <span class="fuel-icon">🔥</span>
+    <div class="fuel-track"><div class="fuel-fill" id="fuelFill"></div></div>
+  </div>
+  <div class="shield-row" id="shieldRow"></div>
+  <div class="shield-row" id="livesRow" style="display:none;"></div>
+  <div class="shield-row" id="missileRow"></div>
+  <div class="best" id="bestVal">Meilleur (session) : 0</div>
+</div>
+
+<div id="minimapWrap" class="glass">
+  <div id="minimapInner">
+    <span class="compass-n">N</span>
+    <canvas id="minimap" width="130" height="130"></canvas>
+  </div>
+</div>
+
+<button id="muteBtn" class="glass" title="Couper/activer le son">🔊</button>
+
+<div id="popupLayer"></div>
+<div id="damageFlash"></div>
+<div id="speedLines"></div>
+<div id="windIndicator"></div>
+
+<div id="directionIndicator">
+  <span class="dir-cell"></span><span class="dir-cell dir-up" id="dirUp">▲</span><span class="dir-cell"></span>
+  <span class="dir-cell dir-left" id="dirLeft">◀</span><span class="dir-cell dir-center">✈</span><span class="dir-cell dir-right" id="dirRight">▶</span>
+  <span class="dir-cell"></span><span class="dir-cell dir-down" id="dirDown">▼</span><span class="dir-cell"></span>
+</div>
+
+<div id="touchControls">
+  <div id="joystickZone" class="stick"><div id="joystickThumb"></div></div>
+  <div class="pad-stack">
+    <button id="fireBtn" class="pad pad-fire">🎯</button>
+    <button id="boostBtn" class="pad">BOOST</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script>
+(function() {
+  // ============================================================
+  // Basic setup
+  // ============================================================
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x9fd8f2, 60, 420);
+
+  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // ============================================================
+  // Sound (WebAudio, generated tones - no external files)
+  // ============================================================
+  let audioCtx = null;
+  let engineNodes = null;
+  function initAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { audioCtx = null; }
+    }
+  }
+
+  // Continuous synthesized engine drone: two slightly detuned oscillators
+  // through a lowpass filter, so it never depends on an external audio file.
+  function startEngineSound() {
+    if (!audioCtx || engineNodes) return;
+    const now = audioCtx.currentTime;
+
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+    osc1.frequency.setValueAtTime(90, now);
+    osc2.frequency.setValueAtTime(94, now);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(500, now);
+    filter.Q.value = 0.7;
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.6);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc1.start();
+    osc2.start();
+
+    engineNodes = { osc1, osc2, filter, gain };
+  }
+  function stopEngineSound() {
+    if (!engineNodes || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    engineNodes.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    const nodes = engineNodes;
+    setTimeout(() => {
+      try { nodes.osc1.stop(); nodes.osc2.stop(); } catch (e) { /* already stopped */ }
+    }, 350);
+    engineNodes = null;
+  }
+  // speedRatio: 0 (idle/base speed) .. 1 (full boost)
+  function updateEngineSound(speedRatio, boosting) {
+    if (!engineNodes || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const freq1 = 90 + speedRatio * 130;
+    const freq2 = freq1 + 4 + speedRatio * 6;
+    engineNodes.osc1.frequency.setTargetAtTime(freq1, now, 0.08);
+    engineNodes.osc2.frequency.setTargetAtTime(freq2, now, 0.08);
+    engineNodes.filter.frequency.setTargetAtTime(500 + speedRatio * 1400, now, 0.1);
+    const targetGain = audioMuted ? 0 : (boosting ? 0.075 : 0.05) + speedRatio * 0.02;
+    engineNodes.gain.gain.setTargetAtTime(targetGain, now, 0.15);
+  }
+
+  let audioMuted = false;
+  function setAudioMuted(muted) {
+    audioMuted = muted;
+    if (engineNodes && audioCtx) {
+      engineNodes.gain.gain.setTargetAtTime(muted ? 0 : 0.05, audioCtx.currentTime, 0.1);
+    }
+  }
+
+  function playTone(freq, duration, type, volume) {
+    if (!audioCtx || audioMuted) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(volume || 0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+  function playCollectSound(tier) {
+    const freqs = [660, 880, 1180];
+    playTone(freqs[tier] || 660, 0.22, 'triangle', 0.18);
+    setTimeout(() => playTone((freqs[tier] || 660) * 1.5, 0.15, 'sine', 0.1), 60);
+  }
+  function playRingSound() {
+    playTone(320, 0.12, 'sawtooth', 0.12);
+    setTimeout(() => playTone(520, 0.18, 'sine', 0.15), 90);
+  }
+  function playObstacleHitSound() {
+    playTone(140, 0.25, 'square', 0.2);
+    setTimeout(() => playTone(90, 0.2, 'sawtooth', 0.15), 60);
+  }
+  function vibrate(pattern) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) { /* ignore unsupported */ }
+    }
+  }
+
+  // ============================================================
+  // Sky dome
+  // ============================================================
+  const skyGeo = new THREE.IcosahedronGeometry(400, 2);
+  const skyColors = [];
+  const skyPos = skyGeo.attributes.position;
+  const topColor = new THREE.Color(0x4fa8e0);
+  const botColor = new THREE.Color(0xdff3ff);
+  for (let i = 0; i < skyPos.count; i++) {
+    const y = skyPos.getY(i);
+    const tt = THREE.MathUtils.clamp((y + 100) / 300, 0, 1);
+    const c = botColor.clone().lerp(topColor, tt);
+    skyColors.push(c.r, c.g, c.b);
+  }
+  skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(skyColors, 3));
+  const skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  // ============================================================
+  // Lighting
+  // ============================================================
+  const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x5a5d62, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff3d6, 1.1);
+  sun.position.set(80, 120, 40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -150;
+  sun.shadow.camera.right = 150;
+  sun.shadow.camera.top = 150;
+  sun.shadow.camera.bottom = -150;
+  sun.shadow.camera.far = 400;
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+  function mat(color) {
+    return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.9, metalness: 0.05 });
+  }
+
+  // ============================================================
+  // City ground — a flat plane textured with a procedurally drawn street
+  // grid, replacing the ocean. Buildings and the airport sit on top of it.
+  // The texture's road lines are computed from the same blockSpacing used
+  // to place buildings below, so the painted streets actually line up
+  // with where the buildings sit instead of drifting past them.
+  // ============================================================
+  const groundSize = 700;
+  const blockSpacing = 32;
+  function makeCityTexture(worldSize, blockSize) {
+    const size = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#5b6068';
+    ctx.fillRect(0, 0, size, size);
+
+    // buildings sit ON grid points (n * blockSpacing); roads run between
+    // them, so the grid lines are offset by half a block from world 0
+    const pxPerUnit = size / worldSize;
+    const linePx = blockSize * pxPerUnit;
+    const roadWidth = Math.max(4, linePx * 0.18);
+    const originPx = size / 2;
+
+    ctx.strokeStyle = '#7d828a';
+    ctx.lineWidth = roadWidth;
+    for (let off = -Math.ceil(size / linePx) - 1; off <= Math.ceil(size / linePx) + 1; off++) {
+      const p = originPx + (off + 0.5) * linePx;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(size, p); ctx.stroke();
+    }
+    // dashed centerlines
+    ctx.strokeStyle = 'rgba(255,224,138,0.7)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    for (let off = -Math.ceil(size / linePx) - 1; off <= Math.ceil(size / linePx) + 1; off++) {
+      const p = originPx + (off + 0.5) * linePx;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(size, p); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // occasional green parks inside blocks
+    const halfBlocks = Math.ceil(size / linePx / 2) + 1;
+    for (let i = 0; i < 14; i++) {
+      const gx = Math.floor(Math.random() * (halfBlocks * 2 + 1)) - halfBlocks;
+      const gz = Math.floor(Math.random() * (halfBlocks * 2 + 1)) - halfBlocks;
+      const bx = originPx + gx * linePx + roadWidth;
+      const bz = originPx + gz * linePx + roadWidth;
+      ctx.fillStyle = '#4a9d5a';
+      ctx.fillRect(bx, bz, linePx - roadWidth * 2, linePx - roadWidth * 2);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+  const groundMat = new THREE.MeshStandardMaterial({
+    map: makeCityTexture(groundSize, blockSpacing), flatShading: true, roughness: 0.95, metalness: 0.02
+  });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(groundSize, groundSize), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = 0;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ============================================================
+  // Clouds
+  // ============================================================
+  const cloudGroup = new THREE.Group();
+  for (let i = 0; i < 18; i++) {
+    const cloud = new THREE.Group();
+    const puffs = 3 + Math.floor(Math.random() * 3);
+    for (let p = 0; p < puffs; p++) {
+      const g = new THREE.IcosahedronGeometry(3 + Math.random() * 2, 0);
+      const m = new THREE.Mesh(g, mat(0xffffff));
+      m.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 4);
+      m.scale.y = 0.6;
+      cloud.add(m);
+    }
+    cloud.position.set((Math.random() - 0.5) * 500, 55 + Math.random() * 45, (Math.random() - 0.5) * 500);
+    cloud.userData.speed = 0.4 + Math.random() * 0.6;
+    cloudGroup.add(cloud);
+  }
+  scene.add(cloudGroup);
+
+  // ============================================================
+  // City buildings, park trees, airport
+  // ============================================================
+  const buildings = [];
+  const crystals = [];
+  const rings = [];
+  const worldRadius = 260;
+
+  function makeTree(scale) {
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 1.4, 5), mat(0x7a5230));
+    trunk.position.y = 0.7;
+    trunk.castShadow = true;
+    tree.add(trunk);
+    const leafColors = [0x3f9d4a, 0x57b35e, 0x2f8a3d];
+    for (let i = 0; i < 3; i++) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.9 - i * 0.18, 1.1, 6), mat(leafColors[i % leafColors.length]));
+      cone.position.y = 1.5 + i * 0.75;
+      cone.castShadow = true;
+      tree.add(cone);
+    }
+    tree.scale.setScalar(scale);
+    return tree;
+  }
+
+  function makeRock(scale, color) {
+    const geo = new THREE.IcosahedronGeometry(1, 0);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const jitter = 0.15;
+      pos.setXYZ(i, pos.getX(i) + (Math.random() - 0.5) * jitter, pos.getY(i) + (Math.random() - 0.5) * jitter, pos.getZ(i) + (Math.random() - 0.5) * jitter);
+    }
+    geo.computeVertexNormals();
+    const rock = new THREE.Mesh(geo, mat(color || 0x8d8d8d));
+    rock.scale.set(scale, scale * 0.7, scale);
+    rock.castShadow = true;
+    rock.receiveShadow = true;
+    return rock;
+  }
+
+  // tiers: 0 = common (cyan, 1pt), 1 = rare (purple, 3pts), 2 = legendary (gold, 5pts)
+  const TIER_INFO = [
+    { color: 0x7de8ff, emissive: 0x2fb4d9, value: 1, scale: 0.85 },
+    { color: 0xc17dff, emissive: 0x8a3fe0, value: 3, scale: 1.0 },
+    { color: 0xffd75e, emissive: 0xe0a52f, value: 5, scale: 1.15 }
+  ];
+  function pickTier() {
+    const r = Math.random();
+    if (r < 0.72) return 0;
+    if (r < 0.95) return 1;
+    return 2;
+  }
+  function makeCrystal(tier) {
+    const info = TIER_INFO[tier];
+    const geo = new THREE.OctahedronGeometry(1, 0);
+    const m = new THREE.MeshStandardMaterial({
+      color: info.color, emissive: info.emissive, emissiveIntensity: 0.6,
+      flatShading: true, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.92
+    });
+    const crystal = new THREE.Mesh(geo, m);
+    crystal.scale.setScalar(info.scale);
+    crystal.castShadow = true;
+    crystal.userData.tier = tier;
+    crystal.userData.value = info.value;
+    return crystal;
+  }
+
+  // ---- airport exclusion zone: keep a clear corridor for the runway ----
+  const runwayHalfWidth = 12;
+  const runwayStartZ = 15;
+  const runwayEndZ = 105;
+  function inAirportZone(x, z) {
+    return Math.abs(x) < runwayHalfWidth + 6 && z > runwayStartZ - 10 && z < runwayEndZ + 10;
+  }
+
+  const buildingPalette = [0x8fa3b8, 0x6f8299, 0xb7a98a, 0x9db3a6, 0x7d8fa3, 0xc4b28a];
+  const roofPalette = [0x8a4a3a, 0x6b3a3a, 0x4a4a52, 0x7a5a3a];
+
+  // low-poly house: a box body with a peaked roof, so it reads as a real
+  // house silhouette rather than a flat-topped block
+  function makeCityBuilding(x, z) {
+    const w = 8 + Math.random() * 8;
+    const d = 8 + Math.random() * 8;
+    const h = 5 + Math.random() * 16;
+    const color = buildingPalette[Math.floor(Math.random() * buildingPalette.length)];
+    const roofColor = roofPalette[Math.floor(Math.random() * roofPalette.length)];
+
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+    body.position.y = h / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+
+    // peaked roof (a 4-sided pyramid rotated to align with the box)
+    const roofHeight = 1.6 + Math.random() * 1.6;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, roofHeight, 4), mat(roofColor));
+    roof.rotation.y = Math.PI / 4;
+    roof.position.y = h + roofHeight / 2 - 0.1;
+    roof.castShadow = true;
+    group.add(roof);
+
+    // a few windows for extra low-poly detail on taller buildings
+    if (h > 12 && Math.random() < 0.7) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(w * 1.01, 0.4, d * 1.01), mat(0xdff3ff));
+      stripe.position.y = h * 0.55;
+      group.add(stripe);
+    }
+
+    group.position.set(x, 0, z);
+    group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
+    group.userData.radius = Math.max(w, d) / 2;
+    group.userData.height = h + roofHeight;
+    scene.add(group);
+    buildings.push(group);
+    return h + roofHeight;
+  }
+
+  // simple low-poly parked car for street-level detail
+  const carColors = [0xc0504d, 0x4fa3cf, 0xffe08a, 0xd9d9d9, 0x4a9d5a];
+  function makeParkedCar(x, z, rotY) {
+    const group = new THREE.Group();
+    const color = carColors[Math.floor(Math.random() * carColors.length)];
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 3.4), mat(color));
+    body.position.y = 0.5;
+    body.castShadow = true;
+    group.add(body);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 1.8), mat(0x2c2c34));
+    cabin.position.set(0, 0.95, -0.2);
+    group.add(cabin);
+    [[-0.85, -1.1], [0.85, -1.1], [-0.85, 1.1], [0.85, 1.1]].forEach(([wx, wz]) => {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 8), mat(0x2c2c2c));
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(wx, 0.32, wz);
+      group.add(wheel);
+    });
+    group.position.set(x, 0, z);
+    group.rotation.y = rotY;
+    scene.add(group);
+  }
+
+  function makePark(x, z, size) {
+    const treeCount = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < treeCount; i++) {
+      const t = makeTree(0.8 + Math.random() * 0.6);
+      t.position.set(
+        x + (Math.random() - 0.5) * size * 0.7,
+        0,
+        z + (Math.random() - 0.5) * size * 0.7
+      );
+      t.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(t);
+    }
+  }
+
+  // lay out city blocks on a neighborhood grid, leaving the airport
+  // corridor clear (blockSpacing is shared with the ground texture above
+  // so painted streets line up with the actual buildings)
+  const gridSpan = Math.ceil(worldRadius / blockSpacing);
+  for (let gx = -gridSpan; gx <= gridSpan; gx++) {
+    for (let gz = -gridSpan; gz <= gridSpan; gz++) {
+      const cx = gx * blockSpacing + (Math.random() - 0.5) * 6;
+      const cz = gz * blockSpacing + (Math.random() - 0.5) * 6;
+      if (Math.hypot(cx, cz) > worldRadius - 30) continue;
+      if (inAirportZone(cx, cz)) continue;
+
+      const roll = Math.random();
+      if (roll < 0.14) {
+        makePark(cx, cz, blockSpacing * 0.8);
+        continue;
+      }
+
+      const h = makeCityBuilding(cx, cz);
+
+      // a parked car nearby, most of the time
+      if (Math.random() < 0.45) {
+        makeParkedCar(
+          cx + (Math.random() - 0.5) * 12,
+          cz + (Math.random() - 0.5) * 12,
+          Math.random() * Math.PI * 2
+        );
+      }
+
+      // occasional rooftop crystal reward for threading between houses
+      if (Math.random() < 0.5) {
+        const tier = pickTier();
+        const crystal = makeCrystal(tier);
+        crystal.position.set(cx + (Math.random() - 0.5) * 4, h + 3 + Math.random() * 3, cz + (Math.random() - 0.5) * 4);
+        crystal.userData.baseY = crystal.position.y;
+        crystal.userData.phase = Math.random() * Math.PI * 2;
+        scene.add(crystal);
+        crystals.push(crystal);
+      }
+    }
+  }
+
+  // extra crystals scattered freely across the skyline for variety
+  for (let i = 0; i < 30; i++) {
+    const tier = pickTier();
+    const crystal = makeCrystal(tier);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * worldRadius;
+    crystal.position.set(Math.cos(angle) * dist, 14 + Math.random() * 130, Math.sin(angle) * dist);
+    crystal.userData.baseY = crystal.position.y;
+    crystal.userData.phase = Math.random() * Math.PI * 2;
+    scene.add(crystal);
+    crystals.push(crystal);
+  }
+
+  // ============================================================
+  // Kenney 3D city layer
+  // Real Kenney cars drive on the road grid; a residential district,
+  // traffic lights, street lamps and stop signs are added when the
+  // corresponding packs are bundled by the Android workflow.
+  // ============================================================
+  const kenneyTrafficCars = [];
+  const KENNEY_ROOT = 'assets/kenney';
+
+  function prepareKenneyModel(root, castShadow = true, receiveShadow = true) {
+    root.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.castShadow = castShadow;
+      obj.receiveShadow = receiveShadow;
+    });
+    return root;
+  }
+
+  function loadKenneyModel(path) {
+    return new Promise((resolve, reject) => {
+      if (!THREE.GLTFLoader) {
+        reject(new Error('GLTFLoader indisponible'));
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      loader.load(path, (gltf) => {
+        const root = gltf.scene || gltf.scenes[0];
+        resolve(prepareKenneyModel(root));
+      }, undefined, reject);
+    });
+  }
+
+  function cloneKenneyModel(template, castShadow = true, receiveShadow = true) {
+    return prepareKenneyModel(template.clone(true), castShadow, receiveShadow);
+  }
+
+  async function loadKenneySet(paths) {
+    const loaded = [];
+    for (const path of paths) {
+      try {
+        loaded.push(await loadKenneyModel(path));
+      } catch (err) {
+        console.warn('Asset Kenney absent:', path);
+      }
+    }
+    return loaded;
+  }
+
+  function clearProceduralBuildingsNear(x, z, radius = 13) {
+    for (let i = buildings.length - 1; i >= 0; i--) {
+      const b = buildings[i];
+      if (Math.hypot(b.position.x - x, b.position.z - z) < radius) {
+        scene.remove(b);
+        buildings.splice(i, 1);
+      }
+    }
+  }
+
+  function addKenneyHouse(template, x, z, rotY, scale) {
+    clearProceduralBuildingsNear(x, z, 13);
+    const house = cloneKenneyModel(template, true, true);
+    house.scale.setScalar(scale);
+    house.position.set(x, 0.03, z);
+    house.rotation.y = rotY;
+    scene.add(house);
+
+    const box = new THREE.Box3().setFromObject(house);
+    const size = box.getSize(new THREE.Vector3());
+    house.userData.radius = Math.max(size.x, size.z) * 0.46;
+    house.userData.height = Math.max(size.y, 2);
+    buildings.push(house);
+  }
+
+  function safeKenneyRoadCenters(axis) {
+    const vals = [];
+    for (let n = -7; n <= 7; n++) {
+      const v = (n + 0.5) * blockSpacing;
+      if (Math.abs(v) > worldRadius - 25) continue;
+      if (axis === 'x' && v > -5 && v < 120) continue;
+      if (axis === 'z' && Math.abs(v) < 28) continue;
+      vals.push(v);
+    }
+    return vals;
+  }
+
+  function spawnKenneyTraffic(templates, count = 24) {
+    if (!templates.length) return;
+    const horizontal = safeKenneyRoadCenters('x');
+    const vertical = safeKenneyRoadCenters('z');
+
+    for (let i = 0; i < count; i++) {
+      const alongX = Math.random() < 0.5;
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      const template = templates[Math.floor(Math.random() * templates.length)];
+      const car = cloneKenneyModel(template, true, false);
+      car.scale.setScalar(1.18);
+
+      if (alongX) {
+        car.position.set(
+          (Math.random() * 2 - 1) * (worldRadius - 22),
+          0.035,
+          horizontal[Math.floor(Math.random() * horizontal.length)] + dir * 2.4
+        );
+        car.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+        car.userData.trafficAxis = 'x';
+      } else {
+        car.position.set(
+          vertical[Math.floor(Math.random() * vertical.length)] - dir * 2.4,
+          0.035,
+          (Math.random() * 2 - 1) * (worldRadius - 22)
+        );
+        car.rotation.y = dir > 0 ? 0 : Math.PI;
+        car.userData.trafficAxis = 'z';
+      }
+
+      car.userData.trafficDir = dir;
+      car.userData.trafficSpeed = 5.5 + Math.random() * 5.5;
+      scene.add(car);
+      kenneyTrafficCars.push(car);
+    }
+  }
+
+  function updateKenneyTraffic(dt) {
+    const edge = worldRadius - 18;
+    kenneyTrafficCars.forEach((car) => {
+      const dir = car.userData.trafficDir || 1;
+      const speedCar = car.userData.trafficSpeed || 7;
+      if (car.userData.trafficAxis === 'x') {
+        car.position.x += dir * speedCar * dt;
+        if (car.position.x > edge) car.position.x = -edge;
+        if (car.position.x < -edge) car.position.x = edge;
+      } else {
+        car.position.z += dir * speedCar * dt;
+        if (car.position.z > edge) car.position.z = -edge;
+        if (car.position.z < -edge) car.position.z = edge;
+      }
+    });
+  }
+
+  function addKenneyStreetObject(template, x, z, scale, rotY = 0) {
+    if (!template) return;
+    const obj = cloneKenneyModel(template, false, false);
+    obj.scale.setScalar(scale);
+    obj.position.set(x, 0.035, z);
+    obj.rotation.y = rotY;
+    scene.add(obj);
+  }
+
+  async function initKenneyCityLayer() {
+    if (!THREE.GLTFLoader) {
+      console.warn('Kenney 3D: GLTFLoader absent, décor original conservé.');
+      return;
+    }
+
+    const carFiles = ['sedan.glb','suv.glb','taxi.glb','van.glb','delivery.glb','police.glb']
+      .map((f) => `${KENNEY_ROOT}/cars/${f}`);
+    const houseFiles = ['building-type-a.glb','building-type-c.glb','building-type-f.glb','building-type-h.glb','building-type-n.glb','building-type-t.glb']
+      .map((f) => `${KENNEY_ROOT}/city/${f}`);
+
+    const [cars, houses, roadProps] = await Promise.all([
+      loadKenneySet(carFiles),
+      loadKenneySet(houseFiles),
+      Promise.all([
+        loadKenneyModel(`${KENNEY_ROOT}/roads/light-curved.glb`).catch(() => null),
+        loadKenneyModel(`${KENNEY_ROOT}/roads/traffic-light.glb`).catch(() => null),
+        loadKenneyModel(`${KENNEY_ROOT}/roads/road-sign-stop.glb`).catch(() => null)
+      ])
+    ]);
+
+    if (cars.length) spawnKenneyTraffic(cars, 24);
+
+    if (houses.length) {
+      const lots = [
+        [-192,-160],[-160,-160],[-128,-160],[-96,-160],
+        [-192,-128],[-160,-128],[-128,-128],[-96,-128],
+        [-192,-96],[-160,-96],[-128,-96],[-96,-96],
+        [-192,-64],[-160,-64],[-128,-64],[-96,-64]
+      ];
+      lots.forEach(([x,z], i) => {
+        const h = houses[i % houses.length];
+        addKenneyHouse(h, x + (Math.random() - 0.5) * 3, z + (Math.random() - 0.5) * 3, (i % 4) * Math.PI / 2, 8.2 + (i % 3) * 0.55);
+      });
+    }
+
+    const [lamp, trafficLight, stopSign] = roadProps;
+    const crossings = [-176,-112,-48,16,80,144,208];
+    crossings.forEach((x, ix) => {
+      crossings.forEach((z, iz) => {
+        if (Math.hypot(x, z) > worldRadius - 35 || inAirportZone(x, z)) return;
+        if (lamp && (ix + iz) % 2 === 0) {
+          addKenneyStreetObject(lamp, x + 6.5, z + 6.5, 7.2, ((ix + iz) % 4) * Math.PI / 2);
+        }
+        if (trafficLight && ix % 3 === 0 && iz % 3 === 0) {
+          addKenneyStreetObject(trafficLight, x - 6.5, z - 6.5, 7.0, ((ix + iz) % 4) * Math.PI / 2);
+        } else if (stopSign && ix % 3 === 1 && iz % 3 === 1) {
+          addKenneyStreetObject(stopSign, x - 6.0, z + 6.0, 6.4);
+        }
+      });
+    });
+  }
+
+  initKenneyCityLayer();
+
+  // ============================================================
+  // Small airport — runway, control tower and hangar at the spawn point
+  // ============================================================
+  const runwayLength = runwayEndZ - runwayStartZ;
+  const runwayCenterZ = (runwayStartZ + runwayEndZ) / 2;
+  const runwayMat = new THREE.MeshStandardMaterial({ color: 0x4a4d52, flatShading: true, roughness: 0.95 });
+  const runway = new THREE.Mesh(new THREE.PlaneGeometry(runwayHalfWidth * 2, runwayLength), runwayMat);
+  runway.rotation.x = -Math.PI / 2;
+  runway.position.set(0, 0.02, runwayCenterZ);
+  runway.receiveShadow = true;
+  scene.add(runway);
+
+  // dashed centerline
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+  for (let z = runwayStartZ + 4; z < runwayEndZ - 4; z += 10) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 5), dashMat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(0, 0.03, z);
+    scene.add(dash);
+  }
+
+  // control tower
+  const tower = new THREE.Group();
+  const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.2, 12, 8), mat(0xd9d9d9));
+  towerBase.position.y = 6;
+  towerBase.castShadow = true;
+  tower.add(towerBase);
+  const towerCabin = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 8), mat(0x4fa3cf));
+  towerCabin.position.y = 13.5;
+  towerCabin.castShadow = true;
+  tower.add(towerCabin);
+  const towerRoof = new THREE.Mesh(new THREE.ConeGeometry(4.3, 1.6, 8), mat(0xe8623f));
+  towerRoof.position.y = 15.8;
+  tower.add(towerRoof);
+  tower.position.set(runwayHalfWidth + 10, 0, runwayCenterZ - 10);
+  scene.add(tower);
+
+  // hangar
+  const hangar = new THREE.Group();
+  const hangarBody = new THREE.Mesh(new THREE.BoxGeometry(20, 9, 16), mat(0xb0b6bd));
+  hangarBody.position.y = 4.5;
+  hangarBody.castShadow = true;
+  hangar.add(hangarBody);
+  const hangarRoof = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 16, 10, 1, false, 0, Math.PI), mat(0x8f9aa3));
+  hangarRoof.rotation.z = Math.PI / 2;
+  hangarRoof.rotation.y = Math.PI / 2;
+  hangarRoof.position.y = 9;
+  hangarRoof.castShadow = true;
+  hangar.add(hangarRoof);
+  hangar.position.set(-(runwayHalfWidth + 20), 0, runwayCenterZ + 20);
+  scene.add(hangar);
+
+  // simple procedural streetlights lining the runway
+  function makeStreetlight() {
+    const group = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 3.2, 6), mat(0xd9d9d9));
+    pole.position.y = 1.6;
+    group.add(pole);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 5), mat(0xd9d9d9));
+    arm.rotation.z = Math.PI / 2;
+    arm.position.set(0.4, 3.15, 0);
+    group.add(arm);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffe08a, emissiveIntensity: 0.6, flatShading: true }));
+    lamp.position.set(0.8, 3.05, 0);
+    group.add(lamp);
+    return group;
+  }
+  for (let z = runwayStartZ + 6; z < runwayEndZ - 4; z += 16) {
+    [-1, 1].forEach((side) => {
+      const light = makeStreetlight();
+      light.position.set(side * (runwayHalfWidth + 2), 0, z);
+      light.rotation.y = side > 0 ? Math.PI : 0;
+      scene.add(light);
+    });
+  }
+
+  // ============================================================
+  // Rings (fly-through bonus)
+  // ============================================================
+  const ringActiveMat = new THREE.MeshStandardMaterial({ color: 0xff8a5b, emissive: 0xff5a2b, emissiveIntensity: 0.7, flatShading: true, roughness: 0.4 });
+  const ringUsedMat = new THREE.MeshStandardMaterial({ color: 0x8a6a5b, emissive: 0x000000, flatShading: true, roughness: 0.9, transparent: true, opacity: 0.35 });
+
+  function spawnRing(ring) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * (worldRadius - 30);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    ring.position.set(x, 16 + Math.random() * 140, z);
+    ring.rotation.set(Math.random() * 0.6 - 0.3, Math.random() * Math.PI * 2, Math.PI / 2 + (Math.random() * 0.6 - 0.3));
+    ring.userData.active = true;
+    ring.userData.cooldown = 0;
+    ring.material = ringActiveMat;
+  }
+  for (let i = 0; i < 9; i++) {
+    const geo = new THREE.TorusGeometry(3.2, 0.35, 6, 12);
+    const ring = new THREE.Mesh(geo, ringActiveMat);
+    ring.castShadow = true;
+    spawnRing(ring);
+    scene.add(ring);
+    rings.push(ring);
+  }
+
+  // ============================================================
+  // Missile rings — fly through to earn a homing missile that locks onto
+  // the rival AI plane
+  // ============================================================
+  const missileRingMat = new THREE.MeshStandardMaterial({ color: 0xc17dff, emissive: 0x8a3fe0, emissiveIntensity: 0.8, flatShading: true, roughness: 0.35 });
+  const missileRingUsedMat = new THREE.MeshStandardMaterial({ color: 0x6a5b8a, emissive: 0x000000, flatShading: true, roughness: 0.9, transparent: true, opacity: 0.35 });
+  const missileRings = [];
+  function spawnMissileRing(ring) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 25 + Math.random() * (worldRadius - 35);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    ring.position.set(x, 18 + Math.random() * 100, z);
+    ring.rotation.set(Math.random() * 0.6 - 0.3, Math.random() * Math.PI * 2, Math.PI / 2 + (Math.random() * 0.6 - 0.3));
+    ring.userData.active = true;
+    ring.userData.cooldown = 0;
+    ring.material = missileRingMat;
+  }
+  for (let i = 0; i < 4; i++) {
+    const geo = new THREE.TorusGeometry(3.2, 0.4, 6, 12);
+    const ring = new THREE.Mesh(geo, missileRingMat);
+    ring.castShadow = true;
+    spawnMissileRing(ring);
+    scene.add(ring);
+    missileRings.push(ring);
+    // a couple of little fins around the rim so it reads as a "missile
+    // ring" rather than a plain time-bonus ring
+    for (let f = 0; f < 4; f++) {
+      const fin = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 4), missileRingMat);
+      const a = (f / 4) * Math.PI * 2;
+      fin.position.set(Math.cos(a) * 3.6, Math.sin(a) * 3.6, 0);
+      fin.rotation.z = a;
+      ring.add(fin);
+    }
+  }
+
+  // ============================================================
+  // Particle bursts (collect feedback)
+  // ============================================================
+  const particles = [];
+  function spawnBurst(position, color) {
+    for (let i = 0; i < 10; i++) {
+      const geo = new THREE.TetrahedronGeometry(0.15, 0);
+      const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+      const p = new THREE.Mesh(geo, m);
+      p.position.copy(position);
+      const dir = new THREE.Vector3((Math.random() - 0.5), Math.random() * 0.8 + 0.2, (Math.random() - 0.5)).normalize();
+      p.userData.vel = dir.multiplyScalar(3 + Math.random() * 3);
+      p.userData.life = 0.7;
+      scene.add(p);
+      particles.push(p);
+    }
+  }
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.userData.life -= dt;
+      if (p.userData.life <= 0) {
+        scene.remove(p);
+        p.geometry.dispose();
+        p.material.dispose();
+        particles.splice(i, 1);
+        continue;
+      }
+      p.position.addScaledVector(p.userData.vel, dt);
+      p.userData.vel.y -= 6 * dt;
+      p.scale.setScalar(Math.max(p.userData.life / 0.7, 0));
+      p.material.opacity = Math.max(p.userData.life / 0.7, 0);
+    }
+  }
+
+  // ============================================================
+  // Boost smoke trail
+  // ============================================================
+  const smokeParticles = [];
+  function spawnSmoke(position, velocity) {
+    const geo = new THREE.SphereGeometry(0.16, 5, 4);
+    const m = new THREE.MeshBasicMaterial({ color: 0xeef2f5, transparent: true, opacity: 0.5 });
+    const p = new THREE.Mesh(geo, m);
+    p.position.copy(position);
+    p.userData.vel = velocity.clone();
+    p.userData.life = 1.0;
+    p.userData.maxLife = 1.0;
+    scene.add(p);
+    smokeParticles.push(p);
+  }
+  function updateSmoke(dt) {
+    for (let i = smokeParticles.length - 1; i >= 0; i--) {
+      const p = smokeParticles[i];
+      p.userData.life -= dt;
+      if (p.userData.life <= 0) {
+        scene.remove(p);
+        p.geometry.dispose();
+        p.material.dispose();
+        smokeParticles.splice(i, 1);
+        continue;
+      }
+      p.position.addScaledVector(p.userData.vel, dt);
+      p.userData.vel.multiplyScalar(0.97);
+      const progress = 1 - p.userData.life / p.userData.maxLife;
+      p.scale.setScalar(0.4 + progress * 1.6);
+      p.material.opacity = 0.45 * (1 - progress);
+    }
+  }
+
+  // ============================================================
+  // Wind thermals — fly through to climb fast for free
+  // ============================================================
+  const thermals = [];
+  function makeThermal(x, z) {
+    const group = new THREE.Group();
+    const colGeo = new THREE.CylinderGeometry(4, 4, 70, 10, 1, true);
+    const colMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false });
+    const col = new THREE.Mesh(colGeo, colMat);
+    col.position.y = 35;
+    group.add(col);
+    group.position.set(x, 0, z);
+    group.userData.radius = 4.2;
+    group.userData.col = col;
+    scene.add(group);
+    thermals.push(group);
+  }
+  for (let i = 0; i < 7; i++) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * (worldRadius - 30);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    makeThermal(x, z);
+  }
+  let thermalTimer = 0;
+
+  // ============================================================
+  // Wind gusts — occasional lateral push that has to be corrected for
+  // ============================================================
+  let windGustTimer = 8 + Math.random() * 8;
+  let windGustActive = 0; // remaining duration
+  let windGustDir = new THREE.Vector3(1, 0, 0);
+  const windIndicator = document.getElementById('windIndicator');
+  const dirUp = document.getElementById('dirUp');
+  const dirDown = document.getElementById('dirDown');
+  const dirLeft = document.getElementById('dirLeft');
+  const dirRight = document.getElementById('dirRight');
+  function updateDirectionIndicator() {
+    const threshold = 0.12;
+    dirUp.classList.toggle('active', keyMap.pitch > threshold);
+    dirDown.classList.toggle('active', keyMap.pitch < -threshold);
+    // yaw = 1 turns left (see keydown handlers), yaw = -1 turns right
+    dirLeft.classList.toggle('active', keyMap.yaw > threshold);
+    dirRight.classList.toggle('active', keyMap.yaw < -threshold);
+  }
+
+  // ============================================================
+  // Sky obstacles — floating hazard rocks that break your combo and cost
+  // time if you hit them; adds real risk to reckless flying/boosting
+  // ============================================================
+  const obstacles = [];
+  function makeObstacle(x, y, z, scale) {
+    const rock = makeRock(scale, 0x7a3b3b);
+    rock.position.set(x, y, z);
+    rock.userData.radius = scale * 1.15;
+    rock.userData.spinAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+    rock.userData.enabled = true;
+    scene.add(rock);
+    obstacles.push(rock);
+  }
+  // pool sized for the hardest difficulty; easier settings just disable some
+  for (let i = 0; i < 16; i++) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 15 + Math.random() * (worldRadius - 20);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    const y = 12 + Math.random() * 90;
+    makeObstacle(x, y, z, 1.1 + Math.random() * 0.9);
+  }
+  let invulnTimer = 0;
+  let crashed = false;
+  let shieldCharges = 0;
+
+  // ============================================================
+  // Difficulty settings — chosen on the start screen, affects obstacle
+  // density, starting time, and hit penalty
+  // ============================================================
+  const DIFFICULTY = {
+    facile: { obstacles: 5, startTime: 75, penalty: 1, label: 'Facile' },
+    normal: { obstacles: 11, startTime: 60, penalty: 2, label: 'Normal' },
+    difficile: { obstacles: 16, startTime: 45, penalty: 3, label: 'Difficile' }
+  };
+  let difficulty = 'normal';
+  function applyDifficultyToObstacles() {
+    const activeCount = gameMode === 'endless'
+      ? Math.min(obstacles.length, DIFFICULTY[difficulty].obstacles + endlessExtraObstacles)
+      : DIFFICULTY[difficulty].obstacles;
+    obstacles.forEach((o, i) => {
+      const enabled = i < activeCount;
+      o.visible = enabled;
+      o.userData.enabled = enabled;
+    });
+  }
+
+  // ============================================================
+  // Game mode — classic (60s countdown) or endless (hearts, ramping
+  // difficulty over time, no time limit)
+  // ============================================================
+  let gameMode = 'classic';
+  let lives = 3;
+  const maxLives = 3;
+  let endlessElapsed = 0;
+  let endlessExtraObstacles = 0;
+
+  applyDifficultyToObstacles();
+
+  // ============================================================
+  // Magnet power-up — fly through to pull nearby crystals toward you for
+  // a few seconds
+  // ============================================================
+  const magnetPickups = [];
+  const magnetMat = new THREE.MeshStandardMaterial({ color: 0x6ee7d8, emissive: 0x2fd9c4, emissiveIntensity: 0.7, flatShading: true, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.95 });
+  function spawnMagnet(pickup) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * (worldRadius - 30);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    pickup.position.set(x, 16 + Math.random() * 80, z);
+    pickup.userData.active = true;
+    pickup.userData.cooldown = 0;
+    pickup.visible = true;
+  }
+  for (let i = 0; i < 3; i++) {
+    const geo = new THREE.TorusGeometry(0.55, 0.2, 8, 14);
+    const pickup = new THREE.Mesh(geo, magnetMat);
+    pickup.castShadow = true;
+    spawnMagnet(pickup);
+    scene.add(pickup);
+    magnetPickups.push(pickup);
+  }
+  let magnetTimer = 0;
+  const magnetDuration = 6;
+  const magnetRadius = 16;
+
+  // magnet aura shown around the glider while active
+  const magnetAura = new THREE.Mesh(
+    new THREE.SphereGeometry(magnetRadius, 12, 8),
+    new THREE.MeshBasicMaterial({ color: 0x6ee7d8, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false })
+  );
+  magnetAura.visible = false;
+
+  let lastMilestone = 0;
+
+  // ============================================================
+  // Mystery boxes — random effect on collection (jackpot points, bonus
+  // time, full fuel refill, or a small speed penalty as a risk)
+  // ============================================================
+  const mysteryBoxes = [];
+  function spawnMysteryBox(box) {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * (worldRadius - 30);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    box.position.set(x, 16 + Math.random() * 90, z);
+    box.userData.active = true;
+    box.userData.cooldown = 0;
+    box.visible = true;
+  }
+  for (let i = 0; i < 4; i++) {
+    const geo = new THREE.DodecahedronGeometry(0.55, 0);
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, flatShading: true, roughness: 0.25, metalness: 0.3 });
+    const box = new THREE.Mesh(geo, m);
+    box.castShadow = true;
+    spawnMysteryBox(box);
+    scene.add(box);
+    mysteryBoxes.push(box);
+  }
+
+  function checkMilestone() {
+    if (score >= lastMilestone + 20) {
+      lastMilestone += 20;
+      addTime(5);
+      playRingSound();
+      const label = gameMode === 'endless' ? 'Palier atteint +10 pts' : 'Palier atteint +5s';
+      showPopup(glider.position, label, '#ffc857');
+    }
+  }
+
+  function triggerMysteryBox(pos) {
+    const outcomes = [
+      {
+        id: 'jackpot',
+        label: 'Jackpot +15',
+        color: '#ffd75e',
+        apply: () => { score += 15; scoreVal.textContent = score; checkMilestone(); }
+      },
+      {
+        id: 'time',
+        label: gameMode === 'endless' ? '+16 pts' : '+8s de temps',
+        color: '#dff3ff',
+        apply: () => { addTime(8); }
+      },
+      {
+        id: 'fuel',
+        label: 'Carburant plein',
+        color: '#6ee7d8',
+        apply: () => { boostFuel = fuelMax(); }
+      },
+      {
+        id: 'turbulence',
+        label: 'Turbulence !',
+        color: '#ff7a54',
+        apply: () => { speed = Math.max(baseSpeed * 0.5, speed - 8); }
+      }
+    ];
+    const pick = outcomes[Math.floor(Math.random() * outcomes.length)];
+    pick.apply();
+    playRingSound();
+    spawnBurst(pos, 0xffffff);
+    showPopup(pos, pick.label, pick.color);
+    vibrate(pick.id === 'turbulence' ? [40, 40, 40] : 30);
+  }
+
+  // ============================================================
+  // Floating score popups (DOM)
+  // ============================================================
+  const popupLayer = document.getElementById('popupLayer');
+  const damageFlash = document.getElementById('damageFlash');
+  const speedLines = document.getElementById('speedLines');
+  function showPopup(worldPos, text, color) {
+    const vec = worldPos.clone().project(camera);
+    const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+    const el = document.createElement('div');
+    el.className = 'floatPopup';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.color = color;
+    popupLayer.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
+  // ============================================================
+  // Glider (player) — high-wing "Cessna style" toy plane: this silhouette
+  // (wing sitting clearly above a boxy fuselage, strut-braced, tail fin
+  // sticking up at the back) reads unambiguously as a plane from a
+  // behind-and-above chase camera, unlike a flush mid-wing design.
+  // ============================================================
+  // Both the player's glider and the rival AI plane share this exact
+  // silhouette — a high-wing "Cessna style" toy plane (wing sitting clearly
+  // above a boxy fuselage, strut-braced, tail fin sticking up at the back)
+  // — only the paint scheme differs between them.
+  // Local forward is -Z, so the nose/propeller sit at negative Z and the
+  // tail/fin sit at positive Z.
+  function buildPlaneMesh(colors) {
+    const group = new THREE.Group();
+    const bodyMat = mat(colors.body);
+    const bodyMat2 = mat(colors.body2);
+    const wingMat = mat(colors.wing);
+    const wingTipMat = mat(colors.wingTip);
+    const finMat = mat(colors.fin);
+    const noseMat = mat(colors.nose !== undefined ? colors.nose : 0x2c2c2c);
+    const strutMat = mat(colors.strut !== undefined ? colors.strut : 0xd9d9d9);
+    const glassMat = new THREE.MeshStandardMaterial({ color: colors.glass !== undefined ? colors.glass : 0x9fe6ff, flatShading: true, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.85 });
+    const propMat = mat(colors.prop !== undefined ? colors.prop : 0x2c2c2c);
+
+    // fuselage: a rounded capsule body running front (-z) to back (+z),
+    // tapering into a smooth tail boom
+    const cabin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 1.5, 12), bodyMat);
+    cabin.rotation.x = Math.PI / 2;
+    cabin.position.set(0, 0, -0.3);
+    cabin.castShadow = true;
+    group.add(cabin);
+
+    // rounded caps at both ends of the cabin so it reads as a smooth capsule
+    // rather than a flat-ended cylinder
+    const cabinCapFront = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), bodyMat);
+    cabinCapFront.position.set(0, 0, -1.05);
+    cabinCapFront.castShadow = true;
+    group.add(cabinCapFront);
+
+    const cabinCapBack = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), bodyMat);
+    cabinCapBack.position.set(0, 0, 0.45);
+    cabinCapBack.castShadow = true;
+    group.add(cabinCapBack);
+
+    const tailBoom = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.07, 1.7, 12), bodyMat2);
+    tailBoom.rotation.x = Math.PI / 2;
+    tailBoom.position.set(0, 0.05, 1.4);
+    tailBoom.castShadow = true;
+    group.add(tailBoom);
+
+    const noseCone = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.55, 12), noseMat);
+    noseCone.rotation.x = Math.PI / 2;
+    noseCone.position.z = -1.4;
+    noseCone.castShadow = true;
+    group.add(noseCone);
+
+    // spinning propeller right at the nose tip
+    const propeller = new THREE.Group();
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 10), propMat);
+    hub.rotation.x = Math.PI / 2;
+    propeller.add(hub);
+    for (let i = 0; i < 2; i++) {
+      const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.02, 0.8, 8), propMat);
+      blade.scale.z = 0.35;
+      blade.rotation.z = i * Math.PI / 2;
+      propeller.add(blade);
+    }
+    propeller.position.z = -1.72;
+    group.add(propeller);
+
+    // cockpit greenhouse: a smooth glassy dome on top of the cabin
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8, 0, Math.PI * 2, 0, Math.PI / 1.6), glassMat);
+    canopy.scale.set(1, 0.85, 1.6);
+    canopy.position.set(0, 0.4, -0.45);
+    canopy.castShadow = true;
+    group.add(canopy);
+
+    // main wing: sits clearly ABOVE the fuselage (high-wing layout), braced
+    // by two thin struts per side — this elevated placement is what makes the
+    // silhouette instantly read as an aircraft rather than a blob
+    const wingY = 0.62;
+    const wingCenter = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.1, 1.0), wingMat);
+    wingCenter.position.set(0, wingY, -0.1);
+    wingCenter.castShadow = true;
+    group.add(wingCenter);
+
+    [-1, 1].forEach((side) => {
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.7), wingTipMat);
+      tip.position.set(side * 2.75, wingY, -0.1);
+      tip.castShadow = true;
+      group.add(tip);
+
+      // rounded wingtip cap for a softer edge
+      const tipCap = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), wingTipMat);
+      tipCap.scale.set(0.35, 0.55, 1);
+      tipCap.position.set(side * 3.0, wingY, -0.1);
+      tipCap.castShadow = true;
+      group.add(tipCap);
+
+      // strut brace connecting wing to fuselage, classic high-wing cue
+      const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8), strutMat);
+      strut.position.set(side * 0.85, wingY - 0.3, 0.05);
+      strut.rotation.z = side * 0.35;
+      strut.castShadow = true;
+      group.add(strut);
+    });
+
+    // tail: horizontal stabilizer + upright vertical fin at the very tip of
+    // the tail boom (the fin stands straight up — apex at +Y — with no extra
+    // rotation, which is what actually makes it read as a rudder rather than
+    // a sideways spike)
+    const tailWing = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.07, 0.5), wingMat);
+    tailWing.position.set(0, 0.1, 2.2);
+    tailWing.castShadow = true;
+    group.add(tailWing);
+
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.7, 10), finMat);
+    fin.scale.x = 0.14;
+    fin.position.set(0, 0.4, 2.15);
+    fin.castShadow = true;
+    group.add(fin);
+
+    return { group, bodyMat, bodyMat2, wingMat, wingTipMat, finMat, propeller };
+  }
+
+  const playerPlane = buildPlaneMesh({ body: 0xff7a54, body2: 0xe8623f, wing: 0xffe08a, wingTip: 0xffc857, fin: 0xe8623f });
+  const glider = playerPlane.group;
+  const bodyMat = playerPlane.bodyMat;
+  const bodyMat2 = playerPlane.bodyMat2;
+  const wingMat = playerPlane.wingMat;
+  const wingTipMat = playerPlane.wingTipMat;
+  const finMat = playerPlane.finMat;
+  const propeller = playerPlane.propeller;
+  glider.add(magnetAura);
+
+  // retractable landing gear: one nose wheel + two main wheels, folded up
+  // into the fuselage shortly after takeoff
+  const gearMat = mat(0x2c2c2c);
+  const strutColor = mat(0xd9d9d9);
+  const landingGear = new THREE.Group();
+  function makeWheel() {
+    const wheel = new THREE.Group();
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.42, 5), strutColor);
+    strut.position.y = 0.21;
+    wheel.add(strut);
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.07, 6, 10), gearMat);
+    tire.rotation.y = Math.PI / 2;
+    tire.position.y = 0.42;
+    wheel.add(tire);
+    return wheel;
+  }
+  const noseWheel = makeWheel();
+  noseWheel.scale.setScalar(0.85);
+  noseWheel.position.set(0, -0.32, -1.0);
+  landingGear.add(noseWheel);
+  [-1, 1].forEach((side) => {
+    const w = makeWheel();
+    w.position.set(side * 0.55, -0.32, 0.15);
+    landingGear.add(w);
+  });
+  glider.add(landingGear);
+  glider.userData.gearDeployed = true;
+  glider.userData.gearRetractProgress = 0;
+
+  glider.position.set(0, 2.5, 98);
+  scene.add(glider);
+
+  // ============================================================
+  // Rival AI plane — patrols the skyline; shoot it down to make it drop a
+  // parachute cargo crate worth bonus points if you catch it before it
+  // lands
+  // ============================================================
+  // ============================================================
+  // Loot target — a glowing pickup the rival AI plane flies toward, grabs,
+  // then tries to fly back to the runway with. Shoot the AI down before it
+  // gets there.
+  // ============================================================
+  const lootMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc857, emissiveIntensity: 0.8, flatShading: true, roughness: 0.2, metalness: 0.3 });
+  const lootTarget = new THREE.Group();
+  const lootCase = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), mat(0x8a5a2f));
+  lootTarget.add(lootCase);
+  const lootGlow = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), lootMat);
+  lootTarget.add(lootGlow);
+  scene.add(lootTarget);
+
+  function spawnLootTarget() {
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 25 + Math.random() * (worldRadius - 40);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (inAirportZone(x, z) && tries < 10);
+    lootTarget.position.set(x, 20 + Math.random() * 60, z);
+    lootTarget.visible = true;
+  }
+  spawnLootTarget();
+
+  function makeAIPlane() {
+    // exact same plane model as the player's, just in rival colors, so it
+    // reads as "the same kind of plane" at a glance
+    const rival = buildPlaneMesh({
+      body: 0xe8342a, body2: 0xb01f1f, wing: 0xffffff, wingTip: 0xdedede,
+      fin: 0xe8342a, nose: 0x2c2c2c, strut: 0xdedede
+    });
+    const group = rival.group;
+
+    // a small bright beacon on top of the tail so it's easy to spot from a
+    // distance against the sky/city
+    const beacon = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc857, emissiveIntensity: 1, flatShading: true })
+    );
+    beacon.position.set(0, 0.75, 2.15);
+    group.add(beacon);
+    group.userData.beacon = beacon;
+    group.userData.propeller = rival.propeller;
+
+    // small crate that appears under the plane once it has grabbed the loot
+    const carriedCrate = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mat(0x8a5a2f));
+    carriedCrate.position.set(0, -0.5, 0.2);
+    carriedCrate.visible = false;
+    group.add(carriedCrate);
+    group.userData.carriedCrate = carriedCrate;
+
+    group.scale.setScalar(1.5);
+    group.userData.heading = Math.random() * Math.PI * 2;
+    group.userData.speed = 17;
+    group.userData.turnRate = 0.9;
+    group.userData.state = 'seeking'; // 'seeking' | 'returning'
+    group.userData.carrying = false;
+    group.userData.alive = true;
+    group.userData.respawnTimer = 0;
+    group.position.set(
+      (Math.random() - 0.5) * 2 * worldRadius * 0.6,
+      30 + Math.random() * 30,
+      (Math.random() - 0.5) * 2 * worldRadius * 0.6
+    );
+    return group;
+  }
+  const aiPlane = makeAIPlane();
+  scene.add(aiPlane);
+
+  const projectiles = [];
+  function spawnProjectile() {
+    const geo = new THREE.SphereGeometry(0.12, 6, 5);
+    const m = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+    const p = new THREE.Mesh(geo, m);
+    const nosePos = glider.localToWorld(new THREE.Vector3(0, 0, -1.8));
+    p.position.copy(nosePos);
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(glider.quaternion);
+    p.userData.vel = dir.multiplyScalar(70);
+    p.userData.life = 2.2;
+    scene.add(p);
+    projectiles.push(p);
+  }
+
+  const missiles = [];
+  function spawnMissile() {
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.6, 6), mat(0xc17dff));
+    body.rotation.x = Math.PI / 2;
+    group.add(body);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), mat(0xe8342a));
+    tip.rotation.x = Math.PI / 2;
+    tip.position.z = -0.41;
+    group.add(tip);
+    [-1, 1].forEach((side) => {
+      const finM = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.18, 0.14), mat(0xffe08a));
+      finM.position.set(side * 0.09, 0, 0.26);
+      group.add(finM);
+    });
+    const nosePos = glider.localToWorld(new THREE.Vector3(0, -0.1, -1.8));
+    group.position.copy(nosePos);
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(glider.quaternion);
+    group.userData.vel = dir.multiplyScalar(46);
+    group.userData.life = 5;
+    group.userData.smokeTimer = 0;
+    scene.add(group);
+    missiles.push(group);
+  }
+
+  const cargoDrops = [];
+  function spawnCargoDrop(position) {
+    const group = new THREE.Group();
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mat(0xc4874a));
+    group.add(crate);
+    const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.1, 0.9, 8, 1, true), new THREE.MeshStandardMaterial({ color: 0xffe08a, flatShading: true, side: THREE.DoubleSide }));
+    canopy.position.y = 1.6;
+    group.add(canopy);
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI * 2;
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.3, 3), mat(0xffffff));
+      line.position.set(Math.cos(angle) * 0.6, 1.05, Math.sin(angle) * 0.6);
+      line.rotation.z = Math.cos(angle) * 0.35;
+      line.rotation.x = Math.sin(angle) * 0.35;
+      group.add(line);
+    }
+    group.position.copy(position);
+    group.userData.vy = -3.2;
+    group.userData.value = 25;
+    scene.add(group);
+    cargoDrops.push(group);
+  }
+
+  function downAIPlane() {
+    if (!aiPlane.userData.alive) return;
+    const wasCarrying = aiPlane.userData.carrying;
+    aiPlane.userData.alive = false;
+    aiPlane.userData.carrying = false;
+    aiPlane.userData.state = 'seeking';
+    if (aiPlane.userData.carriedCrate) aiPlane.userData.carriedCrate.visible = false;
+    aiPlane.visible = false;
+    aiPlane.userData.respawnTimer = 6;
+    spawnBurst(aiPlane.position, 0xffe08a);
+    playObstacleHitSound();
+    showPopup(aiPlane.position, 'Avion rival abattu !', '#ffc857');
+    spawnCargoDrop(aiPlane.position);
+    if (wasCarrying) spawnLootTarget();
+  }
+
+  // ============================================================
+  // Controls
+  // ============================================================
+  const input = { boost: false, fire: false };
+  const keyMap = { yaw: 0, pitch: 0 };
+  // smoothed (inertial) versions of keyMap, used for the actual flight
+  // physics so both keyboard and the virtual joystick feel weighty rather
+  // than snapping instantly to the raw input
+  let smoothYaw = 0;
+  let smoothPitch = 0;
+
+  window.addEventListener('keydown', (e) => {
+    switch (e.code) {
+      case 'ArrowLeft': case 'KeyA': case 'KeyQ': keyMap.yaw = 1; break;
+      case 'ArrowRight': case 'KeyD': keyMap.yaw = -1; break;
+      case 'ArrowUp': case 'KeyW': case 'KeyZ': keyMap.pitch = 1; break;
+      case 'ArrowDown': case 'KeyS': keyMap.pitch = -1; break;
+      case 'Space': input.boost = true; break;
+      case 'KeyF': case 'ControlLeft': input.fire = true; break;
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    switch (e.code) {
+      case 'ArrowLeft': case 'KeyA': case 'KeyQ': if (keyMap.yaw === 1) keyMap.yaw = 0; break;
+      case 'ArrowRight': case 'KeyD': if (keyMap.yaw === -1) keyMap.yaw = 0; break;
+      case 'ArrowUp': case 'KeyW': case 'KeyZ': if (keyMap.pitch === 1) keyMap.pitch = 0; break;
+      case 'ArrowDown': case 'KeyS': if (keyMap.pitch === -1) keyMap.pitch = 0; break;
+      case 'Space': input.boost = false; break;
+      case 'KeyF': case 'ControlLeft': input.fire = false; break;
+    }
+  });
+
+  const isTouch = 'ontouchstart' in window;
+  const touchControls = document.getElementById('touchControls');
+  if (isTouch) touchControls.style.display = 'flex';
+
+  const joystickZone = document.getElementById('joystickZone');
+  const joystickThumb = document.getElementById('joystickThumb');
+  let joyActive = false, joyId = null;
+
+  function setJoyFromEvent(clientX, clientY) {
+    const rect = joystickZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const max = rect.width / 2;
+    const dist = Math.min(Math.hypot(dx, dy), max);
+    const angle = Math.atan2(dy, dx);
+    dx = Math.cos(angle) * dist;
+    dy = Math.sin(angle) * dist;
+    joystickThumb.style.left = (37 + dx) + 'px';
+    joystickThumb.style.top = (37 + dy) + 'px';
+    keyMap.yaw = -dx / max;
+    keyMap.pitch = -dy / max;
+  }
+  function resetJoy() {
+    joystickThumb.style.left = '37px';
+    joystickThumb.style.top = '37px';
+    keyMap.yaw = 0; keyMap.pitch = 0;
+  }
+  joystickZone.addEventListener('touchstart', (e) => {
+    joyActive = true;
+    joyId = e.changedTouches[0].identifier;
+    setJoyFromEvent(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchmove', (e) => {
+    if (!joyActive) return;
+    for (const t of e.changedTouches) if (t.identifier === joyId) setJoyFromEvent(t.clientX, t.clientY);
+  }, { passive: false });
+  window.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) if (t.identifier === joyId) { joyActive = false; resetJoy(); }
+  });
+
+  const boostBtn = document.getElementById('boostBtn');
+  boostBtn.addEventListener('touchstart', (e) => { input.boost = true; e.preventDefault(); }, { passive: false });
+  boostBtn.addEventListener('touchend', (e) => { input.boost = false; e.preventDefault(); }, { passive: false });
+
+  const fireBtn = document.getElementById('fireBtn');
+  fireBtn.addEventListener('touchstart', (e) => { input.fire = true; e.preventDefault(); }, { passive: false });
+  fireBtn.addEventListener('touchend', (e) => { input.fire = false; e.preventDefault(); }, { passive: false });
+
+  // ============================================================
+  // Game state
+  // ============================================================
+  let score = 0;
+  let bestScore = 0;
+  let timeLeft = 60;
+  let running = false;
+  let speed = 14;
+  const baseSpeed = 14;
+  const boostSpeed = 24;
+  const ringBoostDuration = 1.6;
+  let ringBoostTimer = 0;
+
+  let boostFuel = 100;
+  const boostFuelBase = 100;
+  const boostDrainRate = 32;
+  const boostRegenRate = 15;
+  let smokeTimer = 0;
+  let fireTimer = 0;
+  let missileCount = 0;
+  const maxMissiles = 5;
+
+  // ============================================================
+  // Skill upgrades — bought between runs with skill points earned from
+  // score. Persist only for this browser session (reset on page reload).
+  // ============================================================
+  const UPGRADE_MAX_LEVEL = 5;
+  let skillPoints = 0;
+  let skillPointsEarnedThisRun = 0;
+
+  // ============================================================
+  // Plane skins — cosmetic color sets unlockable with skill points
+  // ============================================================
+  const SKINS = {
+    corail: { label: 'Corail', cost: 0, body: 0xff7a54, body2: 0xe8623f, wing: 0xffe08a, wingTip: 0xffc857, fin: 0xe8623f },
+    ocean: { label: 'Océan', cost: 8, body: 0x4fa3cf, body2: 0x2f6f96, wing: 0xbfe8ff, wingTip: 0x9fd8ff, fin: 0x2f6f96 },
+    foret: { label: 'Forêt', cost: 8, body: 0x4a9d5a, body2: 0x2f7a3d, wing: 0xd9f2b4, wingTip: 0xbfe08a, fin: 0x2f7a3d },
+    furtif: { label: 'Furtif', cost: 15, body: 0x2c2c34, body2: 0x1a1a20, wing: 0x7a7a85, wingTip: 0x9a9aa5, fin: 0x1a1a20 },
+    or: { label: 'Royal', cost: 15, body: 0xffc857, body2: 0xe0a52f, wing: 0xfff3d6, wingTip: 0xffe08a, fin: 0xe0a52f }
+  };
+  let unlockedSkins = new Set(['corail']);
+  let selectedSkin = 'corail';
+
+  // ============================================================
+  // Achievements — session-tracked milestones
+  // ============================================================
+  const stats = { totalCrystals: 0, totalRings: 0, bestCombo: 1, runsCompleted: 0, maxEndlessSurvived: 0 };
+  const achievementsUnlocked = new Set();
+  const ACHIEVEMENTS = [
+    { id: 'first_flight', icon: '🪂', label: 'Premier vol', check: (s) => s.runsCompleted >= 1 },
+    { id: 'crystals_50', icon: '💎', label: '50 cristaux', check: (s) => s.totalCrystals >= 50 },
+    { id: 'crystals_200', icon: '💠', label: '200 cristaux', check: (s) => s.totalCrystals >= 200 },
+    { id: 'combo_x3', icon: '🔥', label: 'Combo x3', check: (s) => s.bestCombo >= 3 },
+    { id: 'rings_50', icon: '⭕', label: '50 anneaux', check: (s) => s.totalRings >= 50 },
+    { id: 'endless_120', icon: '🛡️', label: 'Survivant 2 min', check: (s) => s.maxEndlessSurvived >= 120 }
+  ];
+  const upgrades = {
+    altitude: { level: 0, label: 'Plafond d\'altitude', unit: 'm', base: 220, perLevel: 25, icon: '🛫' },
+    climb: { level: 0, label: 'Vitesse de montée', unit: '', base: 9, perLevel: 1.6, icon: '⬆️' },
+    fuel: { level: 0, label: 'Réservoir de carburant', unit: '%', base: 100, perLevel: 20, icon: '🔥' },
+    shield: { level: 0, label: 'Bouclier (chocs encaissés)', unit: '', base: 0, perLevel: 1, icon: '🛡️', maxLevel: 3 }
+  };
+  function upgradeCost(level) { return (level + 1) * 3; }
+  function upgradeValue(u) { return u.base + u.level * u.perLevel; }
+  function altitudeMax() { return upgradeValue(upgrades.altitude); }
+  function climbRate() { return upgradeValue(upgrades.climb); }
+  function fuelMax() { return upgradeValue(upgrades.fuel); }
+
+  let combo = 1;
+  let comboCount = 0;
+  let comboTimer = 0;
+  const comboWindow = 4;
+
+  const scoreVal = document.getElementById('scoreVal');
+  const timeVal = document.getElementById('timeVal');
+  function updateTimeDisplay() {
+    if (gameMode === 'endless') {
+      timeVal.style.display = 'none';
+    } else {
+      timeVal.style.display = 'block';
+      timeVal.textContent = `⏱ ${Math.max(Math.round(timeLeft), 0)}s`;
+    }
+  }
+  const comboVal = document.getElementById('comboVal');
+  const bestVal = document.getElementById('bestVal');
+  const fuelFill = document.getElementById('fuelFill');
+  const shieldRow = document.getElementById('shieldRow');
+  function updateShieldHUD() {
+    shieldRow.innerHTML = '';
+    const total = upgrades.shield.level;
+    for (let i = 0; i < total; i++) {
+      const span = document.createElement('span');
+      span.className = 'shield-icon' + (i < shieldCharges ? '' : ' used');
+      span.textContent = '🛡️';
+      shieldRow.appendChild(span);
+    }
+  }
+  const livesRow = document.getElementById('livesRow');
+  function updateLivesHUD() {
+    livesRow.innerHTML = '';
+    for (let i = 0; i < maxLives; i++) {
+      const span = document.createElement('span');
+      span.className = 'shield-icon' + (i < lives ? '' : ' used');
+      span.textContent = '❤️';
+      livesRow.appendChild(span);
+    }
+  }
+  const missileRow = document.getElementById('missileRow');
+  function updateMissileHUD() {
+    missileRow.innerHTML = '';
+    if (missileCount <= 0) return;
+    for (let i = 0; i < missileCount; i++) {
+      const span = document.createElement('span');
+      span.className = 'shield-icon';
+      span.textContent = '🚀';
+      missileRow.appendChild(span);
+    }
+  }
+  const startScreen = document.getElementById('startScreen');
+  const endScreen = document.getElementById('endScreen');
+  const endTitle = document.getElementById('endTitle');
+  const endScore = document.getElementById('endScore');
+  const endBest = document.getElementById('endBest');
+  const skillPointsVal = document.getElementById('skillPointsVal');
+  const shopRows = document.getElementById('shopRows');
+
+  // ---------- Upgrade shop ----------
+  function buildShop() {
+    shopRows.innerHTML = '';
+    Object.keys(upgrades).forEach((key) => {
+      const u = upgrades[key];
+      const maxLevel = u.maxLevel || UPGRADE_MAX_LEVEL;
+      const row = document.createElement('div');
+      row.className = 'shop-row';
+
+      const dots = Array.from({ length: maxLevel })
+        .map((_, i) => `<span class="shop-dot${i < u.level ? ' filled' : ''}"></span>`)
+        .join('');
+
+      const maxed = u.level >= maxLevel;
+      const cost = upgradeCost(u.level);
+      const displayVal = u.unit === '%' ? `${Math.round(upgradeValue(u))}%` : `${Math.round(upgradeValue(u))}${u.unit}`;
+
+      row.innerHTML = `
+        <span class="shop-icon">${u.icon}</span>
+        <div class="shop-label-wrap">
+          <div class="shop-label">${u.label}</div>
+          <div class="shop-value">${displayVal}</div>
+        </div>
+        <div class="shop-dots">${dots}</div>
+        <button class="shop-buy" data-key="${key}" ${maxed || skillPoints < cost ? 'disabled' : ''}>
+          ${maxed ? 'Max' : `+${cost} pt${cost > 1 ? 's' : ''}`}
+        </button>
+      `;
+      shopRows.appendChild(row);
+    });
+
+    shopRows.querySelectorAll('.shop-buy').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-key');
+        const u = upgrades[key];
+        const maxLevel = u.maxLevel || UPGRADE_MAX_LEVEL;
+        const cost = upgradeCost(u.level);
+        if (u.level >= maxLevel || skillPoints < cost) return;
+        skillPoints -= cost;
+        u.level += 1;
+        buildShop();
+        updateSkillPointsDisplay();
+      });
+    });
+  }
+  function updateSkillPointsDisplay() {
+    skillPointsVal.textContent = skillPoints;
+  }
+  buildShop();
+  updateSkillPointsDisplay();
+
+  // ---------- Plane skins ----------
+  const skinRows = document.getElementById('skinRows');
+  function applySkin(key) {
+    const s = SKINS[key];
+    bodyMat.color.setHex(s.body);
+    bodyMat2.color.setHex(s.body2);
+    wingMat.color.setHex(s.wing);
+    wingTipMat.color.setHex(s.wingTip);
+    finMat.color.setHex(s.fin);
+  }
+  function buildSkinShop() {
+    skinRows.innerHTML = '';
+    Object.keys(SKINS).forEach((key) => {
+      const s = SKINS[key];
+      const unlocked = unlockedSkins.has(key);
+      const selected = selectedSkin === key;
+      const btn = document.createElement('button');
+      btn.className = 'skin-swatch' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked');
+      btn.innerHTML = `
+        <span class="swatch-dot" style="background:#${s.body.toString(16).padStart(6, '0')}"></span>
+        <span class="swatch-label">${unlocked ? s.label : `${s.label} · ${s.cost}pt`}</span>
+      `;
+      btn.addEventListener('click', () => {
+        if (!unlockedSkins.has(key)) {
+          if (skillPoints < s.cost) return;
+          skillPoints -= s.cost;
+          unlockedSkins.add(key);
+          updateSkillPointsDisplay();
+          buildShop();
+        }
+        selectedSkin = key;
+        applySkin(key);
+        buildSkinShop();
+      });
+      skinRows.appendChild(btn);
+    });
+  }
+  applySkin(selectedSkin);
+  buildSkinShop();
+
+  // ---------- Achievements ----------
+  const achievementRows = document.getElementById('achievementRows');
+  function buildAchievements() {
+    achievementRows.innerHTML = ACHIEVEMENTS.map((a) => `
+      <div class="achievement-badge${achievementsUnlocked.has(a.id) ? ' unlocked' : ''}">
+        <span class="a-icon">${a.icon}</span>
+        <span class="a-label">${a.label}</span>
+      </div>
+    `).join('');
+  }
+  function checkAchievements() {
+    let newlyUnlocked = false;
+    ACHIEVEMENTS.forEach((a) => {
+      if (!achievementsUnlocked.has(a.id) && a.check(stats)) {
+        achievementsUnlocked.add(a.id);
+        newlyUnlocked = true;
+        showPopup(glider.position, `🏆 ${a.label}`, '#ffc857');
+      }
+    });
+    if (newlyUnlocked) buildAchievements();
+  }
+  buildAchievements();
+
+  // ---------- Language toggle (FR/EN) ----------
+  const I18N = {
+    fr: {
+      tagline: 'Exploration low-poly',
+      intro: 'Décolle du petit aéroport et survole toute une ville en low-poly. Récolte des cristaux entre les gratte-ciel, enchaîne les combos, traverse les anneaux pour gagner du temps, franchis les anneaux violets pour obtenir des missiles auto-téléguidés, et surfe les colonnes d\'air pour grimper vite. Le boost consomme du carburant (jauge en jeu) qui se recharge tout seul.',
+      chip1: 'Flèches / ZQSD pour diriger',
+      chip2: 'Espace pour booster',
+      chip3: 'F pour tirer sur l\'avion rival',
+      chip4: 'Joystick + boutons tactiles',
+      i18n_note: 'Le résumé ci-dessus est disponible en français/anglais ; le détail des boutiques reste en français pour le moment.',
+      mode_label: 'Mode',
+      mode_classic: 'Classique (60s)',
+      mode_endless: 'Sans limite ❤️×3',
+      diff_label: 'Difficulté',
+      diff_easy: 'Facile',
+      diff_normal: 'Normal',
+      diff_hard: 'Difficile',
+      shop_header: '🧬 Améliorations',
+      pts_label: 'pts de compétence',
+      shop_note: 'Gagnés en récoltant des cristaux en vol (1 pt commun, 3 pts rare, 5 pts légendaire) — conservés tant que tu ne recharges pas la page.',
+      skin_header: '🎨 Couleurs de l\'avion',
+      achievements_header: '🏆 Succès',
+      history_header: '🕓 Dernières parties',
+      start_btn: 'Décoller ▶',
+      restart_btn: 'Rejouer',
+      share_btn: '📸 Exporter',
+      contest_badge: '🎁 Concours hebdomadaire — cagnotte financée par les pubs — Bientôt disponible',
+      ad_slot: 'Emplacement publicité (non connecté)',
+      confidential: 'Projet confidentiel',
+      end_time_up: 'Temps écoulé',
+      end_no_lives: 'Plus de vies !',
+      crystals_word: 'cristaux',
+      best_session: 'Meilleur score (session)',
+      pts_earned: 'pts de compétence gagnés',
+      best_hud: 'Meilleur (session)'
+    },
+    en: {
+      tagline: 'Low-poly exploration',
+      intro: 'Take off from the small airport and fly over an entire low-poly city. Collect crystals between the skyscrapers, chain combos, fly through rings for bonus time, fly through purple rings for homing missiles, and ride thermals to climb fast. Boosting uses fuel (gauge in-game) that recharges on its own.',
+      chip1: 'Arrows / WASD to steer',
+      chip2: 'Space to boost',
+      chip3: 'F to shoot the rival plane',
+      chip4: 'Joystick + touch buttons',
+      i18n_note: 'This summary is available in French/English; shop details stay in French for now.',
+      mode_label: 'Mode',
+      mode_classic: 'Classic (60s)',
+      mode_endless: 'Endless ❤️×3',
+      diff_label: 'Difficulty',
+      diff_easy: 'Easy',
+      diff_normal: 'Normal',
+      diff_hard: 'Hard',
+      shop_header: '🧬 Upgrades',
+      pts_label: 'skill points',
+      shop_note: 'Earned by collecting crystals in flight (1 pt common, 3 pts rare, 5 pts legendary) — kept until you reload the page.',
+      skin_header: '🎨 Plane colors',
+      achievements_header: '🏆 Achievements',
+      history_header: '🕓 Recent runs',
+      start_btn: 'Take off ▶',
+      restart_btn: 'Play again',
+      share_btn: '📸 Export',
+      contest_badge: '🎁 Weekly contest — prize pool funded by ads — Coming soon',
+      ad_slot: 'Ad slot (not connected)',
+      confidential: 'Confidential project',
+      end_time_up: 'Time\'s up',
+      end_no_lives: 'Out of lives!',
+      crystals_word: 'crystals',
+      best_session: 'Best score (session)',
+      pts_earned: 'skill points earned',
+      best_hud: 'Best (session)'
+    }
+  };
+  let currentLang = 'fr';
+  const langToggle = document.getElementById('langToggle');
+  function applyLanguage(lang) {
+    currentLang = lang;
+    const dict = I18N[lang];
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.getAttribute('data-i18n');
+      if (dict[key] !== undefined) el.textContent = dict[key];
+    });
+    langToggle.textContent = lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN';
+  }
+  langToggle.addEventListener('click', () => {
+    applyLanguage(currentLang === 'fr' ? 'en' : 'fr');
+  });
+  applyLanguage('fr');
+
+  // ---------- Difficulty selector ----------
+  document.querySelectorAll('#difficultyOptions .diff-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      difficulty = btn.getAttribute('data-diff');
+      document.querySelectorAll('#difficultyOptions .diff-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyDifficultyToObstacles();
+      if (gameMode === 'classic') {
+        timeLeft = DIFFICULTY[difficulty].startTime;
+      }
+      updateTimeDisplay();
+    });
+  });
+
+  // ---------- Game mode selector ----------
+  document.querySelectorAll('#modeOptions .diff-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      gameMode = btn.getAttribute('data-mode');
+      document.querySelectorAll('#modeOptions .diff-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      livesRow.style.display = gameMode === 'endless' ? 'flex' : 'none';
+      if (gameMode === 'classic') {
+        timeLeft = DIFFICULTY[difficulty].startTime;
+      }
+      updateTimeDisplay();
+      applyDifficultyToObstacles();
+    });
+  });
+
+  // ---------- Run history (session only) ----------
+  const runHistory = [];
+  const historyContainer = document.getElementById('historyContainer');
+  const historyRows = document.getElementById('historyRows');
+  function buildHistory() {
+    if (runHistory.length === 0) {
+      historyContainer.style.display = 'none';
+      return;
+    }
+    historyContainer.style.display = 'block';
+    historyRows.innerHTML = runHistory
+      .slice(-5)
+      .reverse()
+      .map((r) => `<div class="history-row"><span>${DIFFICULTY[r.difficulty].label}${r.mode === 'endless' ? ' \u00b7 Sans limite' : ''}</span><span class="h-score">${r.score} pts</span></div>`)
+      .join('');
+  }
+
+  // ---------- Screenshot export ----------
+  document.getElementById('shareBtn').addEventListener('click', () => {
+    const w = renderer.domElement.width;
+    const h = renderer.domElement.height;
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(renderer.domElement, 0, 0, w, h);
+
+    // dark gradient band at the bottom for readable text
+    const bandHeight = h * 0.22;
+    const grad = ctx.createLinearGradient(0, h - bandHeight, 0, h);
+    grad.addColorStop(0, 'rgba(10,25,40,0)');
+    grad.addColorStop(1, 'rgba(10,25,40,0.75)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h - bandHeight, w, bandHeight);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${Math.round(h * 0.06)}px sans-serif`;
+    ctx.fillText(`🪂 Skyline Run — ${score} cristaux`, w * 0.04, h - bandHeight * 0.45);
+    ctx.fillStyle = '#ffc857';
+    ctx.font = `${Math.round(h * 0.03)}px sans-serif`;
+    ctx.fillText(`Difficulté : ${DIFFICULTY[difficulty].label} · Meilleur (session) : ${bestScore}`, w * 0.04, h - bandHeight * 0.15);
+
+    const link = document.createElement('a');
+    link.download = 'aeropelago-score.png';
+    link.href = out.toDataURL('image/png');
+    link.click();
+  });
+
+  const muteBtn = document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', () => {
+    initAudio();
+    setAudioMuted(!audioMuted);
+    muteBtn.textContent = audioMuted ? '🔇' : '🔊';
+  });
+
+  document.getElementById('startBtn').addEventListener('click', () => { initAudio(); startGame(); });
+  document.getElementById('restartBtn').addEventListener('click', () => { endScreen.style.display = 'none'; resetRun(); });
+
+  function startGame() {
+    startScreen.style.display = 'none';
+    boostFuel = fuelMax();
+    fuelFill.style.width = '100%';
+    shieldCharges = upgrades.shield.level;
+    updateShieldHUD();
+    lives = maxLives;
+    endlessElapsed = 0;
+    endlessExtraObstacles = 0;
+    skillPointsEarnedThisRun = 0;
+    crashed = false;
+    glider.visible = true;
+    missileCount = 0;
+    updateMissileHUD();
+    updateLivesHUD();
+    if (gameMode === 'classic') {
+      timeLeft = DIFFICULTY[difficulty].startTime;
+    }
+    updateTimeDisplay();
+    applyDifficultyToObstacles();
+    running = true;
+    clock.start();
+    startEngineSound();
+  }
+
+  function resetRun() {
+    score = 0;
+    timeLeft = DIFFICULTY[difficulty].startTime;
+    speed = baseSpeed;
+    boostFuel = fuelMax();
+    ringBoostTimer = 0;
+    magnetTimer = 0;
+    invulnTimer = 0;
+    smokeTimer = 0;
+    thermalTimer = 0;
+    windGustTimer = 8 + Math.random() * 8;
+    windGustActive = 0;
+    windIndicator.classList.remove('show');
+    fireTimer = 0;
+    combo = 1;
+    comboCount = 0;
+    comboTimer = 0;
+    lastMilestone = 0;
+    elapsedSinceTimer = 0;
+    shieldCharges = upgrades.shield.level;
+    lives = maxLives;
+    endlessElapsed = 0;
+    endlessExtraObstacles = 0;
+    skillPointsEarnedThisRun = 0;
+    crashed = false;
+    glider.visible = true;
+
+    scoreVal.textContent = '0';
+    updateTimeDisplay();
+    comboVal.classList.remove('show');
+    fuelFill.style.width = '100%';
+    magnetAura.visible = false;
+    updateShieldHUD();
+    updateLivesHUD();
+    applyDifficultyToObstacles();
+
+    glider.position.set(0, 2.5, 98);
+    glider.rotation.set(0, 0, 0);
+    landingGear.visible = true;
+    landingGear.position.y = 0;
+    landingGear.scale.setScalar(1);
+    glider.userData.gearDeployed = true;
+    glider.userData.gearRetractProgress = 0;
+
+    crystals.forEach((c) => { c.visible = true; });
+    rings.forEach((r) => spawnRing(r));
+    missileRings.forEach((r) => spawnMissileRing(r));
+    magnetPickups.forEach((mp) => spawnMagnet(mp));
+    mysteryBoxes.forEach((mb) => spawnMysteryBox(mb));
+
+    missileCount = 0;
+    updateMissileHUD();
+    missiles.forEach((m) => scene.remove(m));
+    missiles.length = 0;
+    projectiles.forEach((p) => scene.remove(p));
+    projectiles.length = 0;
+    cargoDrops.forEach((c) => scene.remove(c));
+    cargoDrops.length = 0;
+    aiPlane.userData.alive = true;
+    aiPlane.userData.respawnTimer = 0;
+    aiPlane.userData.heading = Math.random() * Math.PI * 2;
+    aiPlane.userData.state = 'seeking';
+    aiPlane.userData.carrying = false;
+    if (aiPlane.userData.carriedCrate) aiPlane.userData.carriedCrate.visible = false;
+    aiPlane.position.set(
+      (Math.random() - 0.5) * 2 * worldRadius * 0.6,
+      30 + Math.random() * 30,
+      (Math.random() - 0.5) * 2 * worldRadius * 0.6
+    );
+    aiPlane.visible = true;
+    spawnLootTarget();
+
+    buildShop();
+    buildSkinShop();
+    buildAchievements();
+    updateSkillPointsDisplay();
+    buildHistory();
+    startScreen.style.display = 'flex';
+  }
+
+  function endGame() {
+    running = false;
+    stopEngineSound();
+    windIndicator.classList.remove('show');
+    if (score > bestScore) bestScore = score;
+    runHistory.push({ score, difficulty, mode: gameMode });
+    if (runHistory.length > 5) runHistory.shift();
+    stats.runsCompleted += 1;
+    if (gameMode === 'endless') {
+      stats.maxEndlessSurvived = Math.max(stats.maxEndlessSurvived, endlessElapsed);
+    }
+    checkAchievements();
+    const dict = I18N[currentLang];
+    endTitle.textContent = crashed ? '💥 Avion détruit !' : (gameMode === 'endless' ? dict.end_no_lives : dict.end_time_up);
+    endScore.innerHTML = `${score} <span style="font-size:14px;font-weight:700;opacity:0.65;text-transform:none;letter-spacing:0;">${dict.crystals_word}</span>`;
+    endBest.textContent = `${dict.best_session} : ${bestScore} · +${skillPointsEarnedThisRun} ${dict.pts_earned}`;
+    endScreen.style.display = 'flex';
+  }
+
+  function addTime(sec) {
+    if (gameMode === 'endless') {
+      // no timer to extend in endless mode — convert into score instead
+      const bonus = sec * 2;
+      score += bonus;
+      scoreVal.textContent = score;
+    } else {
+      timeLeft += sec;
+      timeVal.textContent = `⏱ ${Math.max(Math.round(timeLeft), 0)}s`;
+    }
+  }
+
+  function registerCollect(tierValue, worldPos, color) {
+    comboCount++;
+    comboTimer = comboWindow;
+    combo = 1 + Math.floor(comboCount / 4) * 0.5;
+    const gained = Math.round(tierValue * combo);
+    score += gained;
+    scoreVal.textContent = score;
+    comboVal.textContent = `Combo x${combo.toFixed(1).replace('.0', '')}`;
+    comboVal.classList.add('show');
+    showPopup(worldPos, `+${gained}`, color);
+    checkMilestone();
+
+    // each diamond collected directly funds plane upgrades — the rarer the
+    // crystal, the more skill points it's worth (1/3/5, matching its tier)
+    skillPoints += tierValue;
+    skillPointsEarnedThisRun += tierValue;
+    updateSkillPointsDisplay();
+
+    stats.totalCrystals += 1;
+    if (combo > stats.bestCombo) stats.bestCombo = combo;
+    checkAchievements();
+  }
+
+  // ============================================================
+  // Minimap
+  // ============================================================
+  const minimapCanvas = document.getElementById('minimap');
+  const mctx = minimapCanvas.getContext('2d');
+  function drawMinimap() {
+    const size = minimapCanvas.width;
+    const scale = (size / 2 - 6) / worldRadius;
+    mctx.clearRect(0, 0, size, size);
+    mctx.fillStyle = 'rgba(20,50,70,0.55)';
+    mctx.beginPath();
+    mctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+    mctx.fill();
+
+    crystals.forEach(c => {
+      if (!c.visible) return;
+      const dx = c.position.x * scale;
+      const dz = c.position.z * scale;
+      const info = TIER_INFO[c.userData.tier];
+      mctx.fillStyle = '#' + info.color.toString(16).padStart(6, '0');
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, c.userData.tier === 2 ? 3 : 2, 0, Math.PI * 2);
+      mctx.fill();
+    });
+    rings.forEach(r => {
+      if (!r.userData.active) return;
+      const dx = r.position.x * scale;
+      const dz = r.position.z * scale;
+      mctx.strokeStyle = '#ff8a5b';
+      mctx.lineWidth = 2;
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 4, 0, Math.PI * 2);
+      mctx.stroke();
+    });
+    missileRings.forEach(r => {
+      if (!r.userData.active) return;
+      const dx = r.position.x * scale;
+      const dz = r.position.z * scale;
+      mctx.strokeStyle = '#c17dff';
+      mctx.lineWidth = 2;
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 4, 0, Math.PI * 2);
+      mctx.stroke();
+    });
+    thermals.forEach(th => {
+      const dx = th.position.x * scale;
+      const dz = th.position.z * scale;
+      mctx.strokeStyle = 'rgba(223,243,255,0.85)';
+      mctx.lineWidth = 1.5;
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 5, 0, Math.PI * 2);
+      mctx.stroke();
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 2, 0, Math.PI * 2);
+      mctx.stroke();
+    });
+    obstacles.forEach(o => {
+      if (!o.userData.enabled) return;
+      const dx = o.position.x * scale;
+      const dz = o.position.z * scale;
+      mctx.fillStyle = '#c0504d';
+      mctx.beginPath();
+      mctx.moveTo(size / 2 + dx, size / 2 + dz - 3);
+      mctx.lineTo(size / 2 + dx + 3, size / 2 + dz + 2);
+      mctx.lineTo(size / 2 + dx - 3, size / 2 + dz + 2);
+      mctx.closePath();
+      mctx.fill();
+    });
+    magnetPickups.forEach(mp => {
+      if (!mp.userData.active) return;
+      const dx = mp.position.x * scale;
+      const dz = mp.position.z * scale;
+      mctx.fillStyle = '#6ee7d8';
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 2.5, 0, Math.PI * 2);
+      mctx.fill();
+    });
+    mysteryBoxes.forEach(mb => {
+      if (!mb.userData.active) return;
+      const dx = mb.position.x * scale;
+      const dz = mb.position.z * scale;
+      mctx.fillStyle = '#ffffff';
+      mctx.strokeStyle = '#c17dff';
+      mctx.lineWidth = 1.2;
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 2.5, 0, Math.PI * 2);
+      mctx.fill();
+      mctx.stroke();
+    });
+    if (aiPlane.userData.alive) {
+      const dx = aiPlane.position.x * scale;
+      const dz = aiPlane.position.z * scale;
+      mctx.fillStyle = aiPlane.userData.carrying ? '#ffe08a' : '#c0504d';
+      mctx.beginPath();
+      mctx.arc(size / 2 + dx, size / 2 + dz, 3, 0, Math.PI * 2);
+      mctx.fill();
+    }
+    if (lootTarget.visible) {
+      const dx = lootTarget.position.x * scale;
+      const dz = lootTarget.position.z * scale;
+      mctx.strokeStyle = '#ffc857';
+      mctx.lineWidth = 1.5;
+      mctx.beginPath();
+      mctx.moveTo(size / 2 + dx - 3, size / 2 + dz);
+      mctx.lineTo(size / 2 + dx + 3, size / 2 + dz);
+      mctx.moveTo(size / 2 + dx, size / 2 + dz - 3);
+      mctx.lineTo(size / 2 + dx, size / 2 + dz + 3);
+      mctx.stroke();
+    }
+
+    // player triangle
+    const px = glider.position.x * scale;
+    const pz = glider.position.z * scale;
+    mctx.save();
+    mctx.translate(size / 2 + px, size / 2 + pz);
+    mctx.rotate(glider.rotation.y);
+    mctx.fillStyle = '#ffffff';
+    mctx.beginPath();
+    mctx.moveTo(0, -6);
+    mctx.lineTo(4, 5);
+    mctx.lineTo(-4, 5);
+    mctx.closePath();
+    mctx.fill();
+    mctx.restore();
+  }
+
+  // ============================================================
+  // Animation loop
+  // ============================================================
+  const clock = new THREE.Clock();
+  let elapsedSinceTimer = 0;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = performance.now() * 0.001;
+
+    cloudGroup.children.forEach(c => {
+      c.position.x += c.userData.speed * dt;
+      if (c.position.x > 300) c.position.x = -300;
+    });
+
+    updateKenneyTraffic(dt);
+
+    propeller.rotation.z += dt * (running ? (16 + speed) : 6);
+
+    crystals.forEach(c => {
+      if (!c.visible) return;
+      c.rotation.y += dt * 1.5;
+      c.position.y = c.userData.baseY + Math.sin(t * 1.6 + c.userData.phase) * 0.5;
+    });
+
+    rings.forEach(r => {
+      r.rotation.x += dt * 0.15;
+      if (!r.userData.active) {
+        r.userData.cooldown -= dt;
+        if (r.userData.cooldown <= 0) spawnRing(r);
+      }
+    });
+
+    missileRings.forEach(r => {
+      r.rotation.x += dt * 0.22;
+      if (!r.userData.active) {
+        r.userData.cooldown -= dt;
+        if (r.userData.cooldown <= 0) spawnMissileRing(r);
+      }
+    });
+
+    thermals.forEach(th => {
+      th.userData.col.rotation.y += dt * 0.4;
+      th.userData.col.material.opacity = 0.06 + Math.sin(t * 2 + th.position.x) * 0.02;
+    });
+
+    obstacles.forEach(o => {
+      o.rotateOnWorldAxis(o.userData.spinAxis, dt * 0.6);
+    });
+
+    magnetPickups.forEach(mp => {
+      mp.rotation.y += dt * 2.2;
+      mp.rotation.x += dt * 1.1;
+      if (!mp.userData.active) {
+        mp.userData.cooldown -= dt;
+        if (mp.userData.cooldown <= 0) spawnMagnet(mp);
+      }
+    });
+
+    mysteryBoxes.forEach(mb => {
+      mb.rotation.y += dt * 1.6;
+      mb.rotation.x += dt * 0.8;
+      const hue = (t * 0.15 + mb.position.x * 0.01) % 1;
+      mb.material.color.setHSL(hue, 0.8, 0.65);
+      mb.material.emissive.setHSL(hue, 0.8, 0.4);
+      if (!mb.userData.active) {
+        mb.userData.cooldown -= dt;
+        if (mb.userData.cooldown <= 0) spawnMysteryBox(mb);
+      }
+    });
+
+    // rival AI plane: flies toward a loot target, grabs it, then heads for
+    // the runway to "land" with it — turning and banking gradually like a
+    // real pilot instead of snapping onto a perfect circle
+    if (aiPlane.userData.alive) {
+      const ud = aiPlane.userData;
+      const targetPos = ud.state === 'seeking'
+        ? lootTarget.position
+        : { x: 0, y: 4, z: runwayCenterZ };
+
+      const dx = targetPos.x - aiPlane.position.x;
+      const dz = targetPos.z - aiPlane.position.z;
+      const dy = targetPos.y - aiPlane.position.y;
+
+      const desiredHeading = Math.atan2(-dx, -dz);
+      let diff = desiredHeading - ud.heading;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const maxTurn = ud.turnRate * dt;
+      ud.heading += Math.max(-maxTurn, Math.min(maxTurn, diff));
+
+      aiPlane.position.x += -Math.sin(ud.heading) * ud.speed * dt;
+      aiPlane.position.z += -Math.cos(ud.heading) * ud.speed * dt;
+      aiPlane.position.y += Math.max(-8, Math.min(8, dy)) * dt;
+
+      aiPlane.rotation.y = ud.heading;
+      aiPlane.rotation.z = THREE.MathUtils.clamp(-diff * 0.6, -0.5, 0.5);
+
+      if (ud.beacon) ud.beacon.material.emissiveIntensity = 0.6 + Math.sin(t * 8) * 0.4;
+      if (ud.propeller) ud.propeller.rotation.z += dt * 14;
+
+      if (ud.state === 'seeking' && lootTarget.visible && aiPlane.position.distanceTo(lootTarget.position) < 4) {
+        lootTarget.visible = false;
+        ud.carrying = true;
+        ud.state = 'returning';
+        if (ud.carriedCrate) ud.carriedCrate.visible = true;
+        spawnBurst(lootTarget.position, 0xffe08a);
+        showPopup(lootTarget.position, "L'ennemi a le butin !", '#ff7a54');
+      } else if (ud.state === 'returning' && ud.carrying) {
+        const landDist = Math.hypot(aiPlane.position.x, aiPlane.position.z - runwayCenterZ);
+        if (landDist < 15 && aiPlane.position.y < 8) {
+          ud.alive = false;
+          ud.carrying = false;
+          if (ud.carriedCrate) ud.carriedCrate.visible = false;
+          aiPlane.visible = false;
+          ud.respawnTimer = 5;
+          score = Math.max(0, score - 10);
+          scoreVal.textContent = score;
+          playObstacleHitSound();
+          vibrate([50, 50, 50]);
+          showPopup(aiPlane.position, 'Butin perdu ! -10', '#c0504d');
+          spawnLootTarget();
+        }
+      }
+    } else {
+      aiPlane.userData.respawnTimer -= dt;
+      if (aiPlane.userData.respawnTimer <= 0) {
+        aiPlane.userData.heading = Math.random() * Math.PI * 2;
+        aiPlane.userData.state = 'seeking';
+        aiPlane.userData.carrying = false;
+        aiPlane.position.set(
+          (Math.random() - 0.5) * 2 * worldRadius * 0.6,
+          30 + Math.random() * 30,
+          (Math.random() - 0.5) * 2 * worldRadius * 0.6
+        );
+        aiPlane.userData.alive = true;
+        aiPlane.visible = true;
+      }
+    }
+
+    // falling cargo crates (parachute drops)
+    for (let ci = cargoDrops.length - 1; ci >= 0; ci--) {
+      const crate = cargoDrops[ci];
+      crate.position.y += crate.userData.vy * dt;
+      crate.rotation.y += dt * 0.6;
+      if (running && glider.position.distanceTo(crate.position) < 2.6) {
+        score += crate.userData.value;
+        scoreVal.textContent = score;
+        checkMilestone();
+        skillPoints += 5;
+        skillPointsEarnedThisRun += 5;
+        updateSkillPointsDisplay();
+        spawnBurst(crate.position, 0xffe08a);
+        playCollectSound(2);
+        vibrate(30);
+        showPopup(crate.position, `Colis récupéré +${crate.userData.value}`, '#ffc857');
+        scene.remove(crate);
+        cargoDrops.splice(ci, 1);
+        continue;
+      }
+      if (crate.position.y <= 0.4) {
+        showPopup(crate.position, 'Colis perdu…', '#c0504d');
+        scene.remove(crate);
+        cargoDrops.splice(ci, 1);
+      }
+    }
+
+    // player projectiles
+    for (let pi = projectiles.length - 1; pi >= 0; pi--) {
+      const proj = projectiles[pi];
+      proj.position.addScaledVector(proj.userData.vel, dt);
+      proj.userData.life -= dt;
+      let hit = false;
+      if (aiPlane.userData.alive && proj.position.distanceTo(aiPlane.position) < 2.6) {
+        hit = true;
+        downAIPlane();
+      }
+      if (hit || proj.userData.life <= 0) {
+        scene.remove(proj);
+        projectiles.splice(pi, 1);
+      }
+    }
+
+    // homing missiles: steer toward the rival plane every frame, trailing
+    // a little smoke, until they hit or time out
+    for (let mi = missiles.length - 1; mi >= 0; mi--) {
+      const m = missiles[mi];
+      const ud = m.userData;
+      if (aiPlane.userData.alive) {
+        const toTarget = new THREE.Vector3().copy(aiPlane.position).sub(m.position).normalize();
+        const speed = ud.vel.length();
+        ud.vel.lerp(toTarget.multiplyScalar(speed), Math.min(1, dt * 3.2));
+      }
+      m.position.addScaledVector(ud.vel, dt);
+      const dir = ud.vel.clone().normalize();
+      m.rotation.y = Math.atan2(-dir.x, -dir.z);
+      m.rotation.x = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
+      ud.life -= dt;
+      ud.smokeTimer -= dt;
+      if (ud.smokeTimer <= 0) {
+        ud.smokeTimer = 0.04;
+        spawnSmoke(m.position.clone(), new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2, (Math.random() - 0.5) * 0.5));
+      }
+      let hit = false;
+      if (aiPlane.userData.alive && m.position.distanceTo(aiPlane.position) < 2.8) {
+        hit = true;
+        spawnBurst(m.position, 0xc17dff);
+        downAIPlane();
+      }
+      if (hit || ud.life <= 0) {
+        scene.remove(m);
+        missiles.splice(mi, 1);
+      }
+    }
+
+    updateParticles(dt);
+    updateSmoke(dt);
+
+    if (running) {
+      if (gameMode === 'classic') {
+        elapsedSinceTimer += dt;
+        if (elapsedSinceTimer >= 1) {
+          elapsedSinceTimer -= 1;
+          timeLeft -= 1;
+          updateTimeDisplay();
+          if (timeLeft <= 0) endGame();
+        }
+      } else {
+        // endless mode: no on-screen clock, just ramp obstacle density
+        endlessElapsed += dt;
+        elapsedSinceTimer += dt;
+        if (elapsedSinceTimer >= 25) {
+          elapsedSinceTimer -= 25;
+          endlessExtraObstacles = Math.min(endlessExtraObstacles + 2, obstacles.length);
+          applyDifficultyToObstacles();
+          showPopup(glider.position, 'Turbulences accrues', '#ff7a54');
+        }
+      }
+
+      // wind gusts: occasional lateral push you have to correct for
+      if (windGustActive > 0) {
+        windGustActive -= dt;
+        glider.position.addScaledVector(windGustDir, 6 * dt);
+        if (windGustActive <= 0) {
+          windIndicator.classList.remove('show');
+        }
+      } else {
+        windGustTimer -= dt;
+        if (windGustTimer <= 0) {
+          windGustActive = 2.2 + Math.random() * 1.3;
+          windGustTimer = 10 + Math.random() * 10;
+          const angle = Math.random() * Math.PI * 2;
+          windGustDir.set(Math.cos(angle), 0, Math.sin(angle));
+          const localDir = windGustDir.clone().applyQuaternion(glider.quaternion.clone().invert());
+          windIndicator.textContent = localDir.x > 0 ? '🌬️ Rafale de vent — corrige à gauche' : '🌬️ Rafale de vent — corrige à droite';
+          windIndicator.classList.add('show');
+        }
+      }
+
+      if (comboTimer > 0) {
+        comboTimer -= dt;
+        if (comboTimer <= 0) {
+          comboCount = 0;
+          combo = 1;
+          comboVal.classList.remove('show');
+        }
+      }
+
+      // raw input drives the actual flight response (turning, climbing)
+      // so it feels immediate; a separately smoothed copy only drives the
+      // cosmetic bank/tilt animation so the plane still looks weighty
+      const inertia = 1 - Math.pow(0.0002, dt);
+      smoothYaw = THREE.MathUtils.lerp(smoothYaw, keyMap.yaw, inertia);
+      smoothPitch = THREE.MathUtils.lerp(smoothPitch, keyMap.pitch, inertia);
+      const yawInput = keyMap.yaw;
+      const pitchInput = keyMap.pitch;
+      const bankLerp = 1 - Math.pow(0.0005, dt);
+      glider.rotation.y += yawInput * 1.7 * dt;
+      glider.rotation.z = THREE.MathUtils.lerp(glider.rotation.z, smoothYaw * 0.6, bankLerp);
+      glider.rotation.x = THREE.MathUtils.lerp(glider.rotation.x, smoothPitch * 0.5, bankLerp);
+      updateDirectionIndicator();
+
+      const boosting = input.boost && boostFuel > 0;
+
+      // fire control, rate-limited
+      if (fireTimer > 0) fireTimer -= dt;
+      if (input.fire && fireTimer <= 0) {
+        if (missileCount > 0) {
+          fireTimer = 0.6;
+          missileCount -= 1;
+          updateMissileHUD();
+          spawnMissile();
+          playRingSound();
+          setTimeout(() => playRingSound(), 80);
+          vibrate([20, 20, 20]);
+        } else {
+          fireTimer = 0.4;
+          spawnProjectile();
+          playRingSound();
+          vibrate(15);
+        }
+      }
+      if (ringBoostTimer > 0) {
+        ringBoostTimer -= dt;
+        speed = THREE.MathUtils.lerp(speed, boostSpeed * 1.15, 0.08);
+      } else if (boosting) {
+        speed = THREE.MathUtils.lerp(speed, boostSpeed, 0.05);
+        boostFuel = Math.max(0, boostFuel - boostDrainRate * dt);
+      } else {
+        speed = THREE.MathUtils.lerp(speed, baseSpeed, 0.05);
+        boostFuel = Math.min(fuelMax(), boostFuel + boostRegenRate * dt);
+      }
+      const fuelPct = (boostFuel / fuelMax()) * 100;
+      fuelFill.style.width = fuelPct + '%';
+      fuelFill.style.background = fuelPct < 20
+        ? 'linear-gradient(90deg, #ff5a4a, #ff8a5b)'
+        : 'linear-gradient(90deg, var(--coral), var(--gold))';
+
+      // engine pitch/volume follows current speed + boost state
+      const speedRatio = THREE.MathUtils.clamp((speed - baseSpeed) / (boostSpeed * 1.15 - baseSpeed), 0, 1);
+      updateEngineSound(speedRatio, boosting || ringBoostTimer > 0);
+
+      // speed-lines overlay while boosting
+      if (boosting || ringBoostTimer > 0) {
+        speedLines.classList.add('show');
+      } else {
+        speedLines.classList.remove('show');
+      }
+
+      // boost smoke trail from the tail
+      if (boosting || ringBoostTimer > 0) {
+        smokeTimer -= dt;
+        if (smokeTimer <= 0) {
+          smokeTimer = 0.035;
+          glider.updateMatrixWorld(true);
+          const tailPos = glider.localToWorld(new THREE.Vector3(0, 0.12, 2.3));
+          const backDir = new THREE.Vector3(0, 0, 1).applyQuaternion(glider.quaternion);
+          const vel = backDir.multiplyScalar(2.5).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6));
+          spawnSmoke(tailPos, vel);
+        }
+      }
+
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(glider.quaternion);
+      glider.position.addScaledVector(forward, speed * dt);
+      glider.position.y += pitchInput * climbRate() * dt;
+
+      // wind thermals: standing inside one lifts you fast, for free — only
+      // within the column's actual visible height (0–70m), not the whole sky
+      let inThermal = false;
+      thermals.forEach(th => {
+        const dx = glider.position.x - th.position.x;
+        const dz = glider.position.z - th.position.z;
+        if (Math.hypot(dx, dz) < th.userData.radius && glider.position.y < 70) {
+          inThermal = true;
+        }
+      });
+      if (inThermal) {
+        glider.position.y += 26 * dt;
+        thermalTimer += dt;
+        if (thermalTimer > 0.4 && thermalTimer < 0.45) {
+          showPopup(glider.position, '⬆ Ascendance !', '#dff3ff');
+        }
+      } else {
+        thermalTimer = 0;
+      }
+
+      if (glider.position.y < 1.4) glider.position.y = 1.4;
+      if (glider.position.y > altitudeMax()) glider.position.y = altitudeMax();
+
+      // retract the landing gear shortly after takeoff
+      if (glider.userData.gearDeployed && glider.position.y > 7) {
+        glider.userData.gearRetractProgress = Math.min(1, glider.userData.gearRetractProgress + dt * 1.5);
+        landingGear.position.y = -glider.userData.gearRetractProgress * 0.4;
+        landingGear.scale.setScalar(1 - glider.userData.gearRetractProgress * 0.9);
+        if (glider.userData.gearRetractProgress >= 1) {
+          landingGear.visible = false;
+          glider.userData.gearDeployed = false;
+        }
+      }
+
+      const distFromCenter = Math.hypot(glider.position.x, glider.position.z);
+      if (distFromCenter > worldRadius + 20) {
+        const pull = new THREE.Vector3(-glider.position.x, 0, -glider.position.z).normalize();
+        glider.position.addScaledVector(pull, 20 * dt);
+      }
+
+      // magnet power-up: pull nearby crystals toward the glider while active
+      if (magnetTimer > 0) {
+        magnetTimer -= dt;
+        magnetAura.visible = true;
+        magnetAura.material.opacity = 0.05 + Math.sin(t * 4) * 0.02;
+        crystals.forEach(c => {
+          if (!c.visible) return;
+          if (glider.position.distanceTo(c.position) < magnetRadius) {
+            c.position.lerp(glider.position, Math.min(1, dt * 3));
+          }
+        });
+        if (magnetTimer <= 0) magnetAura.visible = false;
+      }
+
+      if (invulnTimer > 0) invulnTimer -= dt;
+
+      // collect crystals
+      crystals.forEach(c => {
+        if (!c.visible) return;
+        if (glider.position.distanceTo(c.position) < 2.6) {
+          c.visible = false;
+          const info = TIER_INFO[c.userData.tier];
+          spawnBurst(c.position, info.color);
+          playCollectSound(c.userData.tier);
+          vibrate(15);
+          registerCollect(info.value, c.position, '#' + info.color.toString(16).padStart(6, '0'));
+        }
+      });
+
+      // magnet pickups
+      magnetPickups.forEach(mp => {
+        if (!mp.userData.active) return;
+        if (glider.position.distanceTo(mp.position) < 2.8) {
+          mp.userData.active = false;
+          mp.userData.cooldown = 22;
+          mp.visible = false;
+          magnetTimer = magnetDuration;
+          playRingSound();
+          spawnBurst(mp.position, 0x6ee7d8);
+          showPopup(mp.position, 'Aimant activé', '#6ee7d8');
+        }
+      });
+
+      // mystery boxes
+      mysteryBoxes.forEach(mb => {
+        if (!mb.userData.active) return;
+        if (glider.position.distanceTo(mb.position) < 2.8) {
+          mb.userData.active = false;
+          mb.userData.cooldown = 18;
+          mb.visible = false;
+          triggerMysteryBox(mb.position);
+        }
+      });
+
+      // hazard rocks + solid buildings: shield absorbs a hit for free,
+      // otherwise break combo, cost time/a life, brief invulnerability +
+      // knockback
+      function applyHazardHit() {
+        invulnTimer = 1.3;
+        const knock = new THREE.Vector3(0, 0, 1).applyQuaternion(glider.quaternion);
+        glider.position.addScaledVector(knock, 3);
+        glider.position.y += 1.5;
+        spawnBurst(glider.position, shieldCharges > 0 ? 0x6ee7d8 : 0xc0504d);
+
+        if (shieldCharges > 0) {
+          shieldCharges -= 1;
+          updateShieldHUD();
+          playRingSound();
+          vibrate(25);
+          showPopup(glider.position, 'Bouclier !', '#6ee7d8');
+        } else {
+          comboCount = 0;
+          combo = 1;
+          comboVal.classList.remove('show');
+          speed = baseSpeed * 0.5;
+          playObstacleHitSound();
+          vibrate([40, 40, 40]);
+          damageFlash.classList.add('show');
+          setTimeout(() => damageFlash.classList.remove('show'), 220);
+
+          if (gameMode === 'endless') {
+            lives -= 1;
+            updateLivesHUD();
+            showPopup(glider.position, '-1 ❤️', '#ff7a54');
+            if (lives <= 0) endGame();
+          } else {
+            const penalty = DIFFICULTY[difficulty].penalty;
+            timeLeft = Math.max(0, timeLeft - penalty);
+            timeVal.textContent = `⏱ ${Math.max(Math.round(timeLeft), 0)}s`;
+            showPopup(glider.position, `-${penalty}s`, '#ff7a54');
+          }
+        }
+      }
+
+      // crashing into a building is fatal: a dramatic explosion, then an
+      // immediate game over (shield does not save you from a building —
+      // only from rocks)
+      function crashIntoBuilding() {
+        crashed = true;
+        spawnBurst(glider.position, 0xff8a3d);
+        spawnBurst(glider.position, 0xffe08a);
+        spawnBurst(glider.position, 0xc0504d);
+        playObstacleHitSound();
+        setTimeout(() => playObstacleHitSound(), 90);
+        vibrate([60, 40, 60, 40, 120]);
+        damageFlash.classList.add('show');
+        setTimeout(() => damageFlash.classList.remove('show'), 400);
+        glider.visible = false;
+        endGame();
+      }
+
+      if (invulnTimer <= 0) {
+        obstacles.forEach(o => {
+          if (!o.userData.enabled) return;
+          if (glider.position.distanceTo(o.position) < o.userData.radius + 1.2) {
+            applyHazardHit();
+          }
+        });
+      }
+
+      // buildings are solid: hitting one destroys the plane immediately
+      if (!crashed) {
+        for (let bi = 0; bi < buildings.length; bi++) {
+          const b = buildings[bi];
+          const dx = glider.position.x - b.position.x;
+          const dz = glider.position.z - b.position.z;
+          const horizDist = Math.hypot(dx, dz);
+          if (horizDist < (b.userData.radius || 5) + 1.3 && glider.position.y < (b.userData.height || 8) + 1) {
+            crashIntoBuilding();
+            break;
+          }
+        }
+      }
+
+      // pass through rings
+      rings.forEach(r => {
+        if (!r.userData.active) return;
+        if (glider.position.distanceTo(r.position) < 3.4) {
+          r.userData.active = false;
+          r.userData.cooldown = 10;
+          r.material = ringUsedMat;
+          ringBoostTimer = ringBoostDuration;
+          boostFuel = Math.min(fuelMax(), boostFuel + 35);
+          addTime(3);
+          playRingSound();
+          spawnBurst(r.position, 0xff8a5b);
+          showPopup(r.position, gameMode === 'endless' ? '+6 pts ⚡' : '+3s ⚡', '#ffcf9e');
+          stats.totalRings += 1;
+          checkAchievements();
+        }
+      });
+
+      // pass through missile rings — earn a homing missile
+      missileRings.forEach(r => {
+        if (!r.userData.active) return;
+        if (glider.position.distanceTo(r.position) < 3.6) {
+          r.userData.active = false;
+          r.userData.cooldown = 14;
+          r.material = missileRingUsedMat;
+          missileCount = Math.min(maxMissiles, missileCount + 1);
+          updateMissileHUD();
+          playRingSound();
+          setTimeout(() => playRingSound(), 100);
+          vibrate(20);
+          spawnBurst(r.position, 0xc17dff);
+          showPopup(r.position, '🚀 Missile !', '#c17dff');
+        }
+      });
+
+      const camOffset = new THREE.Vector3(0, 3.8, 9.5).applyQuaternion(glider.quaternion);
+      const desiredCamPos = glider.position.clone().add(camOffset);
+      camera.position.lerp(desiredCamPos, 1 - Math.pow(0.001, dt));
+      const lookTarget = glider.position.clone().add(new THREE.Vector3(0, 1, 0));
+      camera.lookAt(lookTarget);
+    }
+
+    drawMinimap();
+    renderer.render(scene, camera);
+  }
+
+  bestVal.textContent = `${I18N[currentLang].best_hud} : ${bestScore}`;
+  animate();
+})();
+</script>
+</body>
+</html>
