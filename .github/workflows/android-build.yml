@@ -28,14 +28,39 @@ jobs:
           npm install
           npm install --no-save three@0.128.0
 
-      - name: Prepare complete offline game
+      - name: Prepare offline Three.js and GLTF loader
         run: |
           test -f www/index.html
-          test "$(wc -c < www/index.html)" -gt 120000
+          test "$(wc -c < www/index.html)" -gt 130000
           cp node_modules/three/build/three.min.js www/three.min.js
+          cp node_modules/three/examples/js/loaders/GLTFLoader.js www/GLTFLoader.js
           sed -i 's|https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js|three.min.js|g' www/index.html
           test -s www/three.min.js
+          test -s www/GLTFLoader.js
           grep -q 'src="three.min.js"' www/index.html
+          grep -q 'src="GLTFLoader.js"' www/index.html
+
+      - name: Prepare Kenney 3D city assets
+        run: |
+          mkdir -p www/assets/kenney/cars www/assets/kenney/city www/assets/kenney/roads
+
+          if [ -f assets/kenney/kenney_car-kit.zip ]; then
+            unzip -j -o assets/kenney/kenney_car-kit.zip               "Models/GLB format/sedan.glb"               "Models/GLB format/suv.glb"               "Models/GLB format/taxi.glb"               "Models/GLB format/van.glb"               "Models/GLB format/delivery.glb"               "Models/GLB format/police.glb"               -d www/assets/kenney/cars
+          else
+            echo "Kenney Car Kit absent: la ville utilisera les voitures de secours."
+          fi
+
+          if [ -f assets/kenney/kenney_city-kit-suburban_20.zip ]; then
+            unzip -j -o assets/kenney/kenney_city-kit-suburban_20.zip               "Models/GLB format/building-type-a.glb"               "Models/GLB format/building-type-c.glb"               "Models/GLB format/building-type-f.glb"               "Models/GLB format/building-type-h.glb"               "Models/GLB format/building-type-n.glb"               "Models/GLB format/building-type-t.glb"               -d www/assets/kenney/city
+          else
+            echo "Kenney Suburban Kit absent: le quartier résidentiel utilisera les bâtiments de secours."
+          fi
+
+          if [ -f assets/kenney/kenney_city-kit-roads.zip ]; then
+            unzip -j -o assets/kenney/kenney_city-kit-roads.zip               "Models/GLB format/light-curved.glb"               "Models/GLB format/traffic-light.glb"               "Models/GLB format/road-sign-stop.glb"               -d www/assets/kenney/roads
+          else
+            echo "Kenney Roads Kit absent: mobilier urbain 3D désactivé."
+          fi
 
       - name: Create Android project
         run: npx cap add android
