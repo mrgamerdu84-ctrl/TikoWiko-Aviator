@@ -32,6 +32,12 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Install original icon and splash
+        run: |
+          cp assets/icon.png android/app/src/main/res/drawable/icon.png
+          cp assets/splash.png android/app/src/main/res/drawable/splash.png
+          sed -i 's|@mipmap/ic_launcher_round|@drawable/icon|g; s|@mipmap/ic_launcher|@drawable/icon|g' android/app/src/main/AndroidManifest.xml
+
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
