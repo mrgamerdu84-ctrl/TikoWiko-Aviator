@@ -24,7 +24,18 @@ jobs:
           java-version: '21'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install --no-save three@0.128.0
+
+      - name: Prepare complete offline game
+        run: |
+          test -f www/index.html
+          test "$(wc -c < www/index.html)" -gt 120000
+          cp node_modules/three/build/three.min.js www/three.min.js
+          sed -i 's|https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js|three.min.js|g' www/index.html
+          test -s www/three.min.js
+          grep -q 'src="three.min.js"' www/index.html
 
       - name: Create Android project
         run: npx cap add android
@@ -32,15 +43,20 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Install original icon and splash
+      - name: Install original icon and splash unchanged
         run: |
+          mkdir -p android/app/src/main/res/drawable
           cp assets/icon.png android/app/src/main/res/drawable/icon.png
           cp assets/splash.png android/app/src/main/res/drawable/splash.png
+          cmp -s assets/icon.png android/app/src/main/res/drawable/icon.png
+          cmp -s assets/splash.png android/app/src/main/res/drawable/splash.png
           sed -i 's|@mipmap/ic_launcher_round|@drawable/icon|g; s|@mipmap/ic_launcher|@drawable/icon|g' android/app/src/main/AndroidManifest.xml
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
