@@ -1237,6 +1237,52 @@
     box-shadow:0 10px 26px rgba(255,112,49,.24),0 0 20px rgba(255,208,93,.12),inset 0 2px 0 rgba(255,255,255,.28) !important;
   }
 
+
+  /* ===== Mobile start-button accessibility fix ===== */
+  #startScreen {
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+    padding-bottom:calc(108px + env(safe-area-inset-bottom,0px)) !important;
+  }
+  #startScreen .start-card {
+    overflow:visible !important;
+    padding-bottom:30px !important;
+  }
+  #startScreen #startBtn {
+    position:sticky !important;
+    bottom:calc(12px + env(safe-area-inset-bottom,0px)) !important;
+    z-index:80 !important;
+    display:block !important;
+    width:min(290px,88vw) !important;
+    margin:18px auto 16px !important;
+    min-height:54px !important;
+    border:2px solid rgba(255,255,255,.28) !important;
+    box-shadow:0 12px 30px rgba(0,18,32,.34),0 0 18px rgba(255,133,83,.15) !important;
+  }
+  #startScreen #startBtn::before {
+    content:"✈ ";
+  }
+  /* These were old placeholders and only made the start menu unnecessarily long. */
+  #startScreen .contest-badge,
+  #startScreen .ad-slot {
+    display:none !important;
+  }
+  @media (max-width:420px) {
+    #startScreen {
+      padding:12px 10px calc(104px + env(safe-area-inset-bottom,0px)) !important;
+    }
+    #startScreen .start-card {
+      padding:26px 16px 24px !important;
+      border-radius:22px !important;
+    }
+    #startScreen #startBtn {
+      width:min(300px,92vw) !important;
+      min-height:58px !important;
+      font-size:18px !important;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -1285,6 +1331,7 @@
         <button class="diff-btn" data-diff="difficile" data-i18n="diff_hard">Difficile</button>
       </div>
     </div>
+    <button id="startBtn" data-i18n="start_btn">Décoller ▶</button>
     <div class="shop" id="shopContainer">
       <div class="shop-header"><span data-i18n="shop_header">🧬 Améliorations</span> <span id="skillPointsVal">0</span> <span data-i18n="pts_label">pts de compétence</span></div>
       <div id="shopRows"></div>
@@ -1302,7 +1349,6 @@
       <div class="history-header" data-i18n="history_header">🕓 Dernières parties</div>
       <div id="historyRows"></div>
     </div>
-    <button id="startBtn" data-i18n="start_btn">Décoller ▶</button>
     <div class="contest-badge" title="Nécessite un compte annonceur (AdSense/AdMob) + un backend + des règles de concours légales avant activation" data-i18n="contest_badge">
       🎁 Concours hebdomadaire — cagnotte financée par les pubs — Bientôt disponible
     </div>
