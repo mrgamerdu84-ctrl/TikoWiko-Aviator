@@ -1469,60 +1469,112 @@
     return Math.abs(x) < runwayHalfWidth + 6 && z > runwayStartZ - 10 && z < runwayEndZ + 10;
   }
 
+  // Procedural facade texture adapted from the Dynamic 3D city prototype.
+  // Kept lightweight for Android: one canvas source, repeated per building.
+  function createCityWindowTexture() {
+    const canvas=document.createElement('canvas');
+    canvas.width=128;
+    canvas.height=128;
+    const ctx=canvas.getContext('2d');
+
+    const grad=ctx.createLinearGradient(0,0,128,128);
+    grad.addColorStop(0,'#dfeaf2');
+    grad.addColorStop(1,'#b9cfdf');
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,0,128,128);
+
+    for(let y=8;y<128;y+=16){
+      for(let x=8;x<128;x+=16){
+        const lit=Math.random()>.74;
+        ctx.fillStyle=lit ? '#ffe69a' : '#5aa6cf';
+        ctx.globalAlpha=lit ? .96 : .78;
+        ctx.fillRect(x,y,8,10);
+        ctx.fillStyle='rgba(255,255,255,.35)';
+        ctx.globalAlpha=1;
+        ctx.fillRect(x+1,y+1,6,1);
+      }
+    }
+    ctx.globalAlpha=1;
+    const tex=new THREE.CanvasTexture(canvas);
+    tex.wrapS=THREE.RepeatWrapping;
+    tex.wrapT=THREE.RepeatWrapping;
+    tex.encoding=THREE.sRGBEncoding;
+    tex.needsUpdate=true;
+    return tex;
+  }
+  const cityWindowTexture=createCityWindowTexture();
+
   const buildingPalette = [0xf2efe7, 0xdbe9f5, 0xd4f1ea, 0xffdec8, 0xe2ddf7, 0xcfe7ff];
   const roofPalette = [0xe64c49, 0x305a79, 0xf2b84b, 0x6d5aa8, 0x2a8990];
 
   function makeCityBuilding(x, z) {
     const core = Math.hypot(x + 120, z + 76) < 62;
-    const w = core ? 8 + Math.random() * 10 : 7 + Math.random() * 9;
-    const d = core ? 8 + Math.random() * 10 : 7 + Math.random() * 9;
-    const h = core ? 18 + Math.random() * 48 : 5 + Math.random() * 17;
+    const w = core ? 8 + Math.random() * 9 : 7 + Math.random() * 8;
+    const d = core ? 8 + Math.random() * 9 : 7 + Math.random() * 8;
+    const h = core ? 20 + Math.random() * 44 : 6 + Math.random() * 16;
     const color = buildingPalette[Math.floor(Math.random() * buildingPalette.length)];
     const accent = roofPalette[Math.floor(Math.random() * roofPalette.length)];
 
     const group = new THREE.Group();
-    const bodyMatLocal = new THREE.MeshStandardMaterial({ color, roughness:.72, metalness:.05, flatShading:true });
+
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(w + .75, 1.25, d + .75),
+      new THREE.MeshStandardMaterial({ color:0x5d7280, roughness:.78, metalness:.04, flatShading:true })
+    );
+    base.position.y=.63;
+    base.castShadow=true;
+    base.receiveShadow=true;
+    group.add(base);
+
+    const facadeTex=cityWindowTexture.clone();
+    facadeTex.needsUpdate=true;
+    facadeTex.repeat.set(Math.max(1,Math.round(w/8)),Math.max(2,Math.round(h/7)));
+
+    const bodyMatLocal = new THREE.MeshStandardMaterial({
+      color,
+      map:facadeTex,
+      roughness:.56,
+      metalness:.10,
+      flatShading:true
+    });
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMatLocal);
-    body.position.y = h / 2;
+    body.position.y = h / 2 + 1.25;
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
     const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w * .90, .65, d * .90),
-      new THREE.MeshStandardMaterial({ color:accent, roughness:.65, metalness:.08, flatShading:true })
+      new THREE.BoxGeometry(w * .94, .65, d * .94),
+      new THREE.MeshStandardMaterial({ color:accent, roughness:.62, metalness:.10, flatShading:true })
     );
-    roof.position.y = h + .32;
+    roof.position.y = h + 1.58;
     roof.castShadow = true;
     group.add(roof);
 
-    if (core) {
-      const glassMatLocal = new THREE.MeshStandardMaterial({
-        color:0x75c9f3, emissive:0x1a6d9b, emissiveIntensity:.12,
-        roughness:.18, metalness:.38, transparent:true, opacity:.86
-      });
-      const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(w * .62, h * .76, .12), glassMatLocal);
-      frontGlass.position.set(0, h * .53, -d * .505);
-      group.add(frontGlass);
-      const sideGlass = new THREE.Mesh(new THREE.BoxGeometry(.12, h * .68, d * .50), glassMatLocal);
-      sideGlass.position.set(w * .505, h * .50, 0);
-      group.add(sideGlass);
-    } else {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(w * 1.015, .28, d * 1.015),
-        new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.5, emissive:0xbfe9ff, emissiveIntensity:.08 })
+    if(core && h>34){
+      const crown = new THREE.Mesh(
+        new THREE.BoxGeometry(w*.58,2.2,d*.58),
+        new THREE.MeshStandardMaterial({color:0x263f57,roughness:.35,metalness:.24})
       );
-      stripe.position.y = Math.min(h - .8, h * .62);
-      group.add(stripe);
+      crown.position.y=h+3;
+      crown.castShadow=true;
+      group.add(crown);
+
+      const beacon=new THREE.Mesh(
+        new THREE.SphereGeometry(.22,8,6),
+        new THREE.MeshBasicMaterial({color:0xff6f66})
+      );
+      beacon.position.y=h+4.35;
+      group.add(beacon);
     }
 
     group.position.set(x, .04, z);
     group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
-    group.userData.radius = Math.max(w, d) * .46;
-    group.userData.height = h + .7;
+    group.userData.radius = Math.max(w, d) * .47;
+    group.userData.height = h + 4.5;
     scene.add(group);
     buildings.push(group);
-    return h + .7;
+    return h + 4.5;
   }
 
   // simple low-poly parked car for street-level detail
@@ -1566,6 +1618,7 @@
   const CITY_X = -120, CITY_Z = -76;
   const roadMat = new THREE.MeshStandardMaterial({ color:0x4f5965, roughness:.92, metalness:.02 });
   const laneMat = new THREE.MeshBasicMaterial({ color:0xf9e78c });
+  const roadLanes = [];
 
   function roadStrip(x, z, w, d) {
     const road = new THREE.Mesh(new THREE.PlaneGeometry(w, d), roadMat);
@@ -1578,6 +1631,7 @@
   for (let i = -2; i <= 2; i++) {
     const z = CITY_Z + i * 28;
     roadStrip(CITY_X, z, 170, 9);
+    roadLanes.push({ axis:'x', fixed:z, min:CITY_X-80, max:CITY_X+80, id:'HX'+i });
     for (let x = CITY_X - 78; x <= CITY_X + 78; x += 15) {
       const dash = new THREE.Mesh(new THREE.PlaneGeometry(6, .25), laneMat);
       dash.rotation.x = -Math.PI / 2;
@@ -1588,6 +1642,7 @@
   for (let i = -2; i <= 2; i++) {
     const x = CITY_X + i * 30;
     roadStrip(x, CITY_Z, 9, 154);
+    roadLanes.push({ axis:'z', fixed:x, min:CITY_Z-72, max:CITY_Z+72, id:'VZ'+i });
     for (let z = CITY_Z - 70; z <= CITY_Z + 70; z += 15) {
       const dash = new THREE.Mesh(new THREE.PlaneGeometry(.25, 6), laneMat);
       dash.rotation.x = -Math.PI / 2;
@@ -1748,43 +1803,133 @@
     for(const p of paths){ try{out.push(await loadKenney(p));}catch(e){console.warn('Kenney manquant',p);} }
     return out;
   }
+  function createFallbackTrafficCar() {
+    const group=new THREE.Group();
+    const colors=[0xef5350,0x42a5f5,0xffb74d,0x4db6ac,0xf5f5f5,0xab7bd4];
+    const color=colors[Math.floor(Math.random()*colors.length)];
+    const body=new THREE.Mesh(
+      new THREE.BoxGeometry(1.65,.62,3.25),
+      new THREE.MeshStandardMaterial({color,roughness:.32,metalness:.22,flatShading:true})
+    );
+    body.position.y=.52; body.castShadow=true; group.add(body);
+    const cabin=new THREE.Mesh(
+      new THREE.BoxGeometry(1.34,.58,1.62),
+      new THREE.MeshStandardMaterial({color:0x173047,roughness:.16,metalness:.28})
+    );
+    cabin.position.set(0,1.02,-.18); cabin.castShadow=true; group.add(cabin);
+    [-.56,.56].forEach(x=>{
+      const lamp=new THREE.Mesh(new THREE.BoxGeometry(.25,.16,.08),new THREE.MeshBasicMaterial({color:0xfff2b0}));
+      lamp.position.set(x,.55,-1.65); group.add(lamp);
+    });
+    return group;
+  }
+
+  function placeTrafficCar(model, lane, dir, index) {
+    const lateral=dir>0 ? -1.55 : 1.55;
+    const start=Math.random()*(lane.max-lane.min)+lane.min;
+    model.scale.multiplyScalar(model.userData.isFallback ? 1 : 1.18);
+
+    if(lane.axis==='x'){
+      model.position.set(start,.08,lane.fixed+lateral);
+      model.rotation.y=dir>0 ? -Math.PI/2 : Math.PI/2;
+    }else{
+      model.position.set(lane.fixed-lateral,.08,start);
+      model.rotation.y=dir>0 ? Math.PI : 0;
+    }
+
+    model.userData.trafficLane=lane;
+    model.userData.trafficDir=dir;
+    model.userData.cruiseSpeed=6.2+Math.random()*4.6;
+    model.userData.currentSpeed=model.userData.cruiseSpeed*(.72+Math.random()*.22);
+    model.userData.laneKey=lane.id+':'+dir;
+    model.userData.trafficIndex=index;
+    scene.add(model);
+    kenneyTrafficCars.push(model);
+  }
+
   function spawnKenneyTraffic(templates) {
-    if(!templates.length) return;
-    const horizontal=[CITY_Z-56,CITY_Z-28,CITY_Z,CITY_Z+28,CITY_Z+56];
-    const vertical=[CITY_X-60,CITY_X-30,CITY_X,CITY_X+30,CITY_X+60];
-    for(let i=0;i<26;i++){
-      const model=prepKenney(templates[i%templates.length].clone(true));
-      model.scale.setScalar(1.18);
-      const alongX=i%2===0;
-      const dir=i%4<2?1:-1;
-      if(alongX){
-        model.position.set(CITY_X-78+Math.random()*156,.08,horizontal[i%horizontal.length]+dir*2.4);
-        model.rotation.y=dir>0?Math.PI/2:-Math.PI/2;
-        model.userData.axis='x';
+    kenneyTrafficCars.splice(0,kenneyTrafficCars.length);
+    const count=28;
+    for(let i=0;i<count;i++){
+      const lane=roadLanes[i%roadLanes.length];
+      const dir=i%2===0 ? 1 : -1;
+      let model;
+      if(templates.length){
+        model=prepKenney(templates[i%templates.length].clone(true));
+        model.userData.isFallback=false;
       }else{
-        model.position.set(vertical[i%vertical.length]-dir*2.4,.08,CITY_Z-68+Math.random()*136);
-        model.rotation.y=dir>0?0:Math.PI;
-        model.userData.axis='z';
+        model=createFallbackTrafficCar();
+        model.userData.isFallback=true;
       }
-      model.userData.dir=dir;
-      model.userData.speed=5.5+Math.random()*5.2;
-      scene.add(model); kenneyTrafficCars.push(model);
+      placeTrafficCar(model,lane,dir,i);
     }
   }
+
+  function distanceToNextIntersection(car) {
+    const lane=car.userData.trafficLane;
+    const dir=car.userData.trafficDir;
+    if(!lane) return Infinity;
+    const axisPos=lane.axis==='x' ? car.position.x : car.position.z;
+    const crossingValues=roadLanes
+      .filter(l=>l.axis!==lane.axis)
+      .map(l=>l.fixed);
+    let best=Infinity;
+    crossingValues.forEach(v=>{
+      const delta=(v-axisPos)*dir;
+      if(delta>=0 && delta<best) best=delta;
+    });
+    return best;
+  }
+
+  function trafficSpacingFactor(car) {
+    const lane=car.userData.trafficLane;
+    const dir=car.userData.trafficDir;
+    const pos=lane.axis==='x' ? car.position.x : car.position.z;
+    let nearest=Infinity;
+    for(const other of kenneyTrafficCars){
+      if(other===car || other.userData.laneKey!==car.userData.laneKey) continue;
+      const op=lane.axis==='x' ? other.position.x : other.position.z;
+      const delta=(op-pos)*dir;
+      if(delta>0 && delta<nearest) nearest=delta;
+    }
+    if(nearest<4.2) return 0;
+    if(nearest<7.5) return .35;
+    if(nearest<11) return .68;
+    return 1;
+  }
+
   function updateKenneyTraffic(dt){
+    const phase=(performance.now()*.001)%12;
+    const horizontalGreen=phase<6;
+
     kenneyTrafficCars.forEach(car=>{
-      const dir=car.userData.dir||1, v=car.userData.speed||7;
-      if(car.userData.axis==='x'){
-        car.position.x+=dir*v*dt;
-        if(car.position.x>CITY_X+82)car.position.x=CITY_X-82;
-        if(car.position.x<CITY_X-82)car.position.x=CITY_X+82;
+      const lane=car.userData.trafficLane;
+      if(!lane) return;
+      const dir=car.userData.trafficDir||1;
+      const red=(lane.axis==='x') ? !horizontalGreen : horizontalGreen;
+      const dToCross=distanceToNextIntersection(car);
+      const signalFactor=(red && dToCross<5.2) ? Math.max(0,(dToCross-1.8)/3.4) : 1;
+      const spacing=trafficSpacingFactor(car);
+      const target=car.userData.cruiseSpeed*Math.min(signalFactor,spacing);
+
+      car.userData.currentSpeed=THREE.MathUtils.lerp(
+        car.userData.currentSpeed,
+        target,
+        1-Math.pow(.0008,dt)
+      );
+
+      if(lane.axis==='x'){
+        car.position.x+=dir*car.userData.currentSpeed*dt;
+        if(car.position.x>lane.max)car.position.x=lane.min;
+        if(car.position.x<lane.min)car.position.x=lane.max;
       }else{
-        car.position.z+=dir*v*dt;
-        if(car.position.z>CITY_Z+74)car.position.z=CITY_Z-74;
-        if(car.position.z<CITY_Z-74)car.position.z=CITY_Z+74;
+        car.position.z+=dir*car.userData.currentSpeed*dt;
+        if(car.position.z>lane.max)car.position.z=lane.min;
+        if(car.position.z<lane.min)car.position.z=lane.max;
       }
     });
   }
+
   async function initKenneyWorld(){
     if(!THREE.GLTFLoader) return;
     const cars=await loadKenneySet([
@@ -1804,6 +1949,31 @@
       loadKenney('assets/kenney/roads/traffic-light.glb').catch(()=>null),
       loadKenney('assets/kenney/roads/road-sign-stop.glb').catch(()=>null)
     ]);
+
+    const homes=await loadKenneySet([
+      'assets/kenney/city/building-type-a.glb',
+      'assets/kenney/city/building-type-c.glb',
+      'assets/kenney/city/building-type-f.glb',
+      'assets/kenney/city/building-type-h.glb',
+      'assets/kenney/city/building-type-n.glb',
+      'assets/kenney/city/building-type-t.glb'
+    ]);
+    if(homes.length){
+      const resort=ISLANDS.find(i=>i.id==='resort');
+      for(let i=0;i<10;i++){
+        const a=(i/10)*Math.PI*2;
+        const house=prepKenney(homes[i%homes.length].clone(true));
+        house.scale.setScalar(6.5+(i%3)*.45);
+        house.position.set(
+          resort.x+Math.cos(a)*(resort.rx*.53),
+          .05,
+          resort.z+Math.sin(a)*(resort.rz*.48)
+        );
+        house.rotation.y=-a+Math.PI/2;
+        scene.add(house);
+      }
+    }
+
     for(let i=-2;i<=2;i++){
       const x=CITY_X+i*30;
       [-56,0,56].forEach((dz,j)=>{
@@ -3318,6 +3488,7 @@
       if (c.position.x > 300) c.position.x = -300;
     });
 
+    waterMat.color.setHSL(.54,.72,.52 + Math.sin(t*.45)*.015);
     updateKenneyTraffic(dt);
     if (lighthouseBeam) lighthouseBeam.rotation.y += dt * .42;
 
