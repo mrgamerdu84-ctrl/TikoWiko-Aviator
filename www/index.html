@@ -1137,6 +1137,106 @@
     box-shadow:0 10px 26px rgba(232,92,66,.34) !important;
   }
 
+
+  /* ===== Premium visual pass ===== */
+  #startScreen::before,
+  #startScreen::after {
+    content:"";
+    position:fixed;
+    pointer-events:none;
+    border-radius:50%;
+    filter:blur(2px);
+    opacity:.55;
+    z-index:-1;
+  }
+  #startScreen::before {
+    width:52vw;
+    height:52vw;
+    min-width:260px;
+    min-height:260px;
+    left:-14vw;
+    top:8vh;
+    background:radial-gradient(circle at 60% 45%,rgba(100,211,255,.30),rgba(27,110,157,.06) 58%,transparent 70%);
+    animation:menuFloatA 9s ease-in-out infinite alternate;
+  }
+  #startScreen::after {
+    width:44vw;
+    height:44vw;
+    min-width:230px;
+    min-height:230px;
+    right:-10vw;
+    bottom:-10vh;
+    background:radial-gradient(circle at 42% 38%,rgba(255,199,88,.18),rgba(255,128,87,.05) 58%,transparent 72%);
+    animation:menuFloatB 11s ease-in-out infinite alternate;
+  }
+  @keyframes menuFloatA {
+    from { transform:translate3d(0,0,0) scale(1); }
+    to { transform:translate3d(4vw,-2vh,0) scale(1.08); }
+  }
+  @keyframes menuFloatB {
+    from { transform:translate3d(0,0,0) scale(1); }
+    to { transform:translate3d(-3vw,-3vh,0) scale(1.06); }
+  }
+  #startScreen .start-card {
+    position:relative;
+    overflow:hidden;
+  }
+  #startScreen .start-card::before {
+    content:"";
+    position:absolute;
+    left:24px;
+    right:24px;
+    top:0;
+    height:2px;
+    border-radius:999px;
+    background:linear-gradient(90deg,transparent,#5ed5ff 24%,#ffd65e 72%,transparent);
+    opacity:.72;
+  }
+  #startScreen .start-card::after {
+    content:"";
+    position:absolute;
+    width:180px;
+    height:180px;
+    top:-110px;
+    right:-82px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(107,210,255,.20),transparent 68%);
+    pointer-events:none;
+  }
+  #startScreen .emblem {
+    border:2px solid rgba(255,255,255,.26) !important;
+    box-shadow:0 10px 25px rgba(0,23,40,.25),0 0 22px rgba(255,198,75,.18) !important;
+  }
+  #startScreen .control-chip,
+  #startScreen .legend .item {
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.055);
+  }
+  #startScreen .shop {
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 7px 18px rgba(0,18,31,.10);
+  }
+  #hud .hud-chip,
+  .score-chip {
+    background:linear-gradient(180deg,rgba(9,43,68,.84),rgba(5,27,46,.80)) !important;
+    border:1px solid rgba(169,226,255,.19) !important;
+    box-shadow:0 7px 19px rgba(0,27,47,.22),inset 0 1px 0 rgba(255,255,255,.08) !important;
+    backdrop-filter:blur(8px);
+  }
+  .score-chip {
+    border-color:rgba(255,215,90,.23) !important;
+  }
+  #scoreVal {
+    text-shadow:0 2px 8px rgba(71,195,255,.25);
+  }
+  #minimapWrap {
+    box-shadow:0 9px 26px rgba(0,21,38,.32),0 0 0 1px rgba(255,222,105,.12),inset 0 0 0 2px rgba(255,255,255,.08) !important;
+  }
+  #fireBtn {
+    box-shadow:0 9px 24px rgba(0,22,39,.34),0 0 18px rgba(72,163,255,.08),inset 0 1px 0 rgba(255,255,255,.24) !important;
+  }
+  #boostBtn {
+    box-shadow:0 10px 26px rgba(255,112,49,.24),0 0 20px rgba(255,208,93,.12),inset 0 2px 0 rgba(255,255,255,.28) !important;
+  }
+
 </style>
 </head>
 <body>
@@ -1545,6 +1645,38 @@
   const skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false });
   scene.add(new THREE.Mesh(skyGeo, skyMat));
 
+
+  // Subtle atmospheric sun disk — warm, not white, so it does not wash out gameplay.
+  const sunDisk = new THREE.Mesh(
+    new THREE.CircleGeometry(18, 32),
+    new THREE.MeshBasicMaterial({
+      color:0xffd889,
+      transparent:true,
+      opacity:.62,
+      fog:false,
+      depthWrite:false,
+      side:THREE.DoubleSide
+    })
+  );
+  sunDisk.position.set(-145,145,-330);
+  sunDisk.lookAt(camera.position);
+  scene.add(sunDisk);
+
+  const sunHalo = new THREE.Mesh(
+    new THREE.CircleGeometry(34, 32),
+    new THREE.MeshBasicMaterial({
+      color:0xffdca0,
+      transparent:true,
+      opacity:.075,
+      fog:false,
+      depthWrite:false,
+      side:THREE.DoubleSide
+    })
+  );
+  sunHalo.position.copy(sunDisk.position);
+  sunHalo.lookAt(camera.position);
+  scene.add(sunHalo);
+
   // ============================================================
   // Lighting
   // ============================================================
@@ -1592,6 +1724,50 @@
   deepWater.rotation.x = -Math.PI / 2;
   deepWater.position.y = -4.8;
   scene.add(deepWater);
+
+
+  // Lightweight ocean detail for Android: no expensive shader, just sparse sparkles
+  // and translucent wave bands that move slowly across the surface.
+  const oceanSparkles = new THREE.Group();
+  const sparkleMat = new THREE.MeshBasicMaterial({
+    color:0xaee7ff,
+    transparent:true,
+    opacity:.24,
+    depthWrite:false
+  });
+  for(let i=0;i<46;i++){
+    const shard=new THREE.Mesh(new THREE.PlaneGeometry(3+Math.random()*5,.10+Math.random()*.10),sparkleMat);
+    shard.rotation.x=-Math.PI/2;
+    shard.rotation.z=Math.random()*Math.PI;
+    shard.position.set(
+      (Math.random()-.5)*groundSize*.82,
+      -.98+Math.random()*.03,
+      (Math.random()-.5)*groundSize*.82
+    );
+    shard.userData.phase=Math.random()*Math.PI*2;
+    shard.userData.baseX=shard.position.x;
+    oceanSparkles.add(shard);
+  }
+  scene.add(oceanSparkles);
+
+  const oceanBands=[];
+  for(let i=0;i<4;i++){
+    const band=new THREE.Mesh(
+      new THREE.RingGeometry(34+i*32,35+i*32,64),
+      new THREE.MeshBasicMaterial({
+        color:0x75d5ee,
+        transparent:true,
+        opacity:.035,
+        side:THREE.DoubleSide,
+        depthWrite:false
+      })
+    );
+    band.rotation.x=-Math.PI/2;
+    band.position.set(38,-1.02,-38);
+    band.scale.z=.68;
+    scene.add(band);
+    oceanBands.push(band);
+  }
 
   const ISLANDS = [
     { id:'airport', x:18,   z:72,   rx:92,  rz:78, grass:0x6ac75d },
@@ -1654,7 +1830,62 @@
     foam.position.set(island.x, -0.90, island.z);
     scene.add(foam);
   }
+
   ISLANDS.forEach(createIslandMesh);
+
+  function addPalmTree(x,z,scale=1){
+    const palm=new THREE.Group();
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x8a633d,roughness:.9,flatShading:true});
+    for(let i=0;i<4;i++){
+      const seg=new THREE.Mesh(new THREE.CylinderGeometry(.12-i*.012,.16-i*.012,1.15,6),trunkMat);
+      seg.position.set(i*.08,i*.98,0);
+      seg.rotation.z=-.08;
+      seg.castShadow=true;
+      palm.add(seg);
+    }
+    const leafMat=new THREE.MeshStandardMaterial({color:0x3c9b58,roughness:.82,flatShading:true});
+    for(let i=0;i<7;i++){
+      const leaf=new THREE.Mesh(new THREE.ConeGeometry(.34,2.2,5),leafMat);
+      const a=(i/7)*Math.PI*2;
+      leaf.position.set(.32,4.15,0);
+      leaf.rotation.z=Math.PI/2;
+      leaf.rotation.y=a;
+      leaf.castShadow=true;
+      palm.add(leaf);
+    }
+    palm.scale.setScalar(scale);
+    palm.position.set(x,.06,z);
+    palm.rotation.y=Math.random()*Math.PI*2;
+    scene.add(palm);
+  }
+
+  ISLANDS.filter(i=>i.id!=='city').forEach((island,idx)=>{
+    const rockMat=new THREE.MeshStandardMaterial({color:0x7c746d,roughness:.96,flatShading:true});
+    for(let r=0;r<5;r++){
+      const a=(r/5)*Math.PI*2 + idx*.55;
+      const rr=.77 + (r%2)*.06;
+      const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1.2+(r%3)*.35,0),rockMat);
+      rock.scale.set(1.4,.70,1.1);
+      rock.position.set(
+        island.x+Math.cos(a)*island.rx*rr,
+        -.12,
+        island.z+Math.sin(a)*island.rz*rr
+      );
+      rock.rotation.set(Math.random()*.3,Math.random()*Math.PI,Math.random()*.25);
+      rock.castShadow=true;
+      scene.add(rock);
+    }
+    if(island.id==='resort' || island.id==='light'){
+      for(let p=0;p<5;p++){
+        const a=.5+p*.92;
+        addPalmTree(
+          island.x+Math.cos(a)*island.rx*.55,
+          island.z+Math.sin(a)*island.rz*.50,
+          .82+(p%3)*.12
+        );
+      }
+    }
+  });
 
   // ============================================================
   // Clouds
@@ -1665,12 +1896,23 @@
     const puffs = 3 + Math.floor(Math.random() * 3);
     for (let p = 0; p < puffs; p++) {
       const g = new THREE.IcosahedronGeometry(3 + Math.random() * 2, 0);
-      const m = new THREE.Mesh(g, mat(0xffffff));
+      const m = new THREE.Mesh(
+        g,
+        new THREE.MeshStandardMaterial({
+          color:0xf4fbff,
+          roughness:.96,
+          metalness:0,
+          transparent:true,
+          opacity:.88,
+          flatShading:true
+        })
+      );
       m.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 4);
       m.scale.y = 0.6;
       cloud.add(m);
     }
-    cloud.position.set((Math.random() - 0.5) * 500, 55 + Math.random() * 45, (Math.random() - 0.5) * 500);
+    cloud.scale.setScalar(.90 + Math.random() * .85);
+    cloud.position.set((Math.random() - 0.5) * 560, 62 + Math.random() * 52, (Math.random() - 0.5) * 560);
     cloud.userData.speed = 0.4 + Math.random() * 0.6;
     cloudGroup.add(cloud);
   }
@@ -1743,6 +1985,14 @@
       new THREE.MeshBasicMaterial({color:info.color,transparent:true,opacity:.16,depthWrite:false})
     );
     crystal.add(glow);
+    const glint=new THREE.Mesh(
+      new THREE.OctahedronGeometry(.36,0),
+      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55,depthWrite:false})
+    );
+    glint.scale.set(.22,.82,.22);
+    glint.position.set(-.25,.32,.14);
+    crystal.add(glint);
+    crystal.userData.glint=glint;
     crystal.userData.tier = tier;
     crystal.userData.value = info.value;
     return crystal;
@@ -2401,7 +2651,7 @@
     ring.userData.routeIndex = i;
     const glow = new THREE.Mesh(
       new THREE.TorusGeometry(5.05,.18,8,24),
-      new THREE.MeshBasicMaterial({color:0xffef99,transparent:true,opacity:.38,depthWrite:false})
+      new THREE.MeshBasicMaterial({color:0xffef99,transparent:true,opacity:.46,depthWrite:false,blending:THREE.AdditiveBlending})
     );
     ring.add(glow);
     ring.userData.glow = glow;
@@ -2810,6 +3060,13 @@
       tip.position.set(side*3.05,.07,-.10); tip.castShadow=true; group.add(tip);
       const stripe=new THREE.Mesh(new THREE.BoxGeometry(.38,.15,1.16),bodyMat);
       stripe.position.set(side*2.15,.075,-.10); group.add(stripe);
+
+      const navLight=new THREE.Mesh(
+        new THREE.SphereGeometry(.10,8,6),
+        new THREE.MeshBasicMaterial({color:side<0?0xff3f4d:0x52ff86})
+      );
+      navLight.position.set(side*3.36,.13,-.45);
+      group.add(navLight);
       const rearTip=new THREE.Mesh(new THREE.BoxGeometry(.42,.12,.66),wingTipMat);
       rearTip.position.set(side*1.12,.125,2.48); group.add(rearTip);
     });
@@ -3874,6 +4131,17 @@
     });
 
     waterMat.color.setHSL(.55,.67,.43 + Math.sin(t*.45)*.012);
+
+    oceanSparkles.children.forEach((shard,i)=>{
+      shard.position.x = shard.userData.baseX + Math.sin(t*.28 + shard.userData.phase) * 4;
+      shard.material.opacity = .14 + (Math.sin(t*1.15 + shard.userData.phase)+1)*.055;
+    });
+    oceanBands.forEach((band,i)=>{
+      band.rotation.z += dt * (.006 + i*.0015);
+      const pulse=1 + Math.sin(t*.22+i)*.018;
+      band.scale.set(pulse, pulse, .68);
+    });
+
     updateKenneyTraffic(dt);
     if (lighthouseBeam) lighthouseBeam.rotation.y += dt * .42;
 
@@ -3883,10 +4151,18 @@
       if (!c.visible) return;
       c.rotation.y += dt * 1.5;
       c.position.y = c.userData.baseY + Math.sin(t * 1.6 + c.userData.phase) * 0.5;
+      if(c.userData.glint){
+        c.userData.glint.material.opacity=.32+(Math.sin(t*3.2+c.userData.phase)+1)*.16;
+      }
     });
 
-    rings.forEach(r => {
+    rings.forEach((r,ri) => {
       r.rotation.x += dt * 0.15;
+      if(r.userData.glow){
+        r.userData.glow.material.opacity=.30+(Math.sin(t*2.4+ri*.55)+1)*.10;
+        const gs=1+Math.sin(t*2.0+ri*.4)*.025;
+        r.userData.glow.scale.setScalar(gs);
+      }
       if (!r.userData.active) {
         r.userData.cooldown -= dt;
         if (r.userData.cooldown <= 0) spawnRing(r);
