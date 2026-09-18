@@ -1,0 +1,10 @@
+DÉPOSE LES 3 PACKS KENNEY ICI — sans les renommer
+
+1. kenney_car-kit.zip
+2. kenney_city-kit-suburban_20.zip
+3. kenney_city-kit-roads.zip
+
+Chemin GitHub :
+assets/kenney/
+
+Le build Android les détectera automatiquement et intégrera les modèles 3D dans l'APK.
