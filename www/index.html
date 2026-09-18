@@ -1214,77 +1214,184 @@
   });
 
   // ============================================================
-  // Sound (WebAudio, generated tones - no external files)
+  // Aircraft sound — autonomous WebAudio propeller engine
+  // No external audio file: engine, propeller chop and wind are synthesized
+  // in real time so the APK keeps working fully offline.
   // ============================================================
   let audioCtx = null;
   let engineNodes = null;
+  let audioMuted = false;
+
   function initAudio() {
     if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch (e) { audioCtx = null; }
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        audioCtx = null;
+      }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
     }
   }
 
-  // Continuous synthesized engine drone: two slightly detuned oscillators
-  // through a lowpass filter, so it never depends on an external audio file.
+  function createNoiseBuffer(seconds = 2) {
+    if (!audioCtx) return null;
+    const length = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+    const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < length; i++) {
+      // Slightly smoothed noise: less hissy, closer to prop/wind texture.
+      const white = Math.random() * 2 - 1;
+      last = last * 0.78 + white * 0.22;
+      data[i] = last;
+    }
+    return buffer;
+  }
+
   function startEngineSound() {
+    initAudio();
     if (!audioCtx || engineNodes) return;
+
     const now = audioCtx.currentTime;
 
+    // Piston-engine body.
     const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
     osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(74, now);
+
+    const osc2 = audioCtx.createOscillator();
     osc2.type = 'triangle';
-    osc1.frequency.setValueAtTime(90, now);
-    osc2.frequency.setValueAtTime(94, now);
+    osc2.frequency.setValueAtTime(146, now);
+    osc2.detune.setValueAtTime(6, now);
 
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(500, now);
-    filter.Q.value = 0.7;
+    const engineMix = audioCtx.createGain();
+    engineMix.gain.setValueAtTime(0.62, now);
 
-    const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.6);
+    const engineFilter = audioCtx.createBiquadFilter();
+    engineFilter.type = 'lowpass';
+    engineFilter.frequency.setValueAtTime(720, now);
+    engineFilter.Q.value = 0.72;
 
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
+    osc1.connect(engineMix);
+    osc2.connect(engineMix);
+    engineMix.connect(engineFilter);
+
+    // One local noise source feeds both propeller chop and airflow.
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = createNoiseBuffer(2);
+    noise.loop = true;
+
+    // Propeller "chop": filtered noise amplitude-modulated at blade frequency.
+    const propFilter = audioCtx.createBiquadFilter();
+    propFilter.type = 'bandpass';
+    propFilter.frequency.setValueAtTime(560, now);
+    propFilter.Q.value = 0.7;
+
+    const propGain = audioCtx.createGain();
+    propGain.gain.setValueAtTime(0.020, now);
+
+    const propLfo = audioCtx.createOscillator();
+    propLfo.type = 'sine';
+    propLfo.frequency.setValueAtTime(17, now);
+
+    const propLfoDepth = audioCtx.createGain();
+    propLfoDepth.gain.setValueAtTime(0.010, now);
+
+    propLfo.connect(propLfoDepth);
+    propLfoDepth.connect(propGain.gain);
+
+    noise.connect(propFilter);
+    propFilter.connect(propGain);
+
+    // Airflow layer becomes more audible as speed rises.
+    const windFilter = audioCtx.createBiquadFilter();
+    windFilter.type = 'highpass';
+    windFilter.frequency.setValueAtTime(900, now);
+
+    const windGain = audioCtx.createGain();
+    windGain.gain.setValueAtTime(0.0015, now);
+
+    noise.connect(windFilter);
+    windFilter.connect(windGain);
+
+    // Master engine bus.
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+
+    engineFilter.connect(master);
+    propGain.connect(master);
+    windGain.connect(master);
+    master.connect(audioCtx.destination);
 
     osc1.start();
     osc2.start();
+    noise.start();
+    propLfo.start();
 
-    engineNodes = { osc1, osc2, filter, gain };
+    const targetGain = audioMuted ? 0.0001 : 0.060;
+    master.gain.exponentialRampToValueAtTime(Math.max(targetGain, 0.0001), now + 0.48);
+
+    engineNodes = {
+      osc1, osc2, engineMix, engineFilter,
+      noise, propFilter, propGain, propLfo, propLfoDepth,
+      windFilter, windGain, master,
+      lastTargetGain: 0.060
+    };
   }
+
   function stopEngineSound() {
     if (!engineNodes || !audioCtx) return;
-    const now = audioCtx.currentTime;
-    engineNodes.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
     const nodes = engineNodes;
-    setTimeout(() => {
-      try { nodes.osc1.stop(); nodes.osc2.stop(); } catch (e) { /* already stopped */ }
-    }, 350);
     engineNodes = null;
-  }
-  // speedRatio: 0 (idle/base speed) .. 1 (full boost)
-  function updateEngineSound(speedRatio, boosting) {
-    if (!engineNodes || !audioCtx) return;
+
     const now = audioCtx.currentTime;
-    const freq1 = 90 + speedRatio * 130;
-    const freq2 = freq1 + 4 + speedRatio * 6;
-    engineNodes.osc1.frequency.setTargetAtTime(freq1, now, 0.08);
-    engineNodes.osc2.frequency.setTargetAtTime(freq2, now, 0.08);
-    engineNodes.filter.frequency.setTargetAtTime(500 + speedRatio * 1400, now, 0.1);
-    const targetGain = audioMuted ? 0 : (boosting ? 0.075 : 0.05) + speedRatio * 0.02;
-    engineNodes.gain.gain.setTargetAtTime(targetGain, now, 0.15);
+    nodes.master.gain.cancelScheduledValues(now);
+    nodes.master.gain.setTargetAtTime(0.0001, now, 0.09);
+
+    setTimeout(() => {
+      try { nodes.osc1.stop(); } catch (e) {}
+      try { nodes.osc2.stop(); } catch (e) {}
+      try { nodes.noise.stop(); } catch (e) {}
+      try { nodes.propLfo.stop(); } catch (e) {}
+      try { nodes.master.disconnect(); } catch (e) {}
+    }, 420);
   }
 
-  let audioMuted = false;
+  // speedRatio: 0 = normal cruise, 1 = maximum boost.
+  function updateEngineSound(speedRatio, boosting) {
+    if (!engineNodes || !audioCtx) return;
+
+    const now = audioCtx.currentTime;
+    const r = THREE.MathUtils.clamp(speedRatio, 0, 1);
+
+    // Engine RPM and harmonic content.
+    const baseHz = 74 + r * 116 + (boosting ? 18 : 0);
+    engineNodes.osc1.frequency.setTargetAtTime(baseHz, now, 0.065);
+    engineNodes.osc2.frequency.setTargetAtTime(baseHz * 1.96, now, 0.065);
+    engineNodes.engineFilter.frequency.setTargetAtTime(720 + r * 1550 + (boosting ? 300 : 0), now, 0.09);
+
+    // Propeller blade-passage rhythm accelerates with speed.
+    engineNodes.propLfo.frequency.setTargetAtTime(17 + r * 17 + (boosting ? 4 : 0), now, 0.07);
+    engineNodes.propFilter.frequency.setTargetAtTime(540 + r * 620, now, 0.1);
+    engineNodes.propGain.gain.setTargetAtTime(0.018 + r * 0.010 + (boosting ? 0.006 : 0), now, 0.10);
+
+    // Air rush grows smoothly during boost.
+    engineNodes.windFilter.frequency.setTargetAtTime(900 + r * 900, now, 0.12);
+    engineNodes.windGain.gain.setTargetAtTime(0.002 + r * 0.013 + (boosting ? 0.008 : 0), now, 0.12);
+
+    const targetGain = (boosting ? 0.075 : 0.058) + r * 0.014;
+    engineNodes.lastTargetGain = targetGain;
+    engineNodes.master.gain.setTargetAtTime(audioMuted ? 0.0001 : targetGain, now, 0.12);
+  }
+
   function setAudioMuted(muted) {
     audioMuted = muted;
     if (engineNodes && audioCtx) {
-      engineNodes.gain.gain.setTargetAtTime(muted ? 0 : 0.05, audioCtx.currentTime, 0.1);
+      const now = audioCtx.currentTime;
+      const target = muted ? 0.0001 : Math.max(0.0001, engineNodes.lastTargetGain || 0.060);
+      engineNodes.master.gain.setTargetAtTime(target, now, 0.08);
     }
   }
 
@@ -1301,22 +1408,26 @@
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
   }
+
   function playCollectSound(tier) {
     const freqs = [660, 880, 1180];
     playTone(freqs[tier] || 660, 0.22, 'triangle', 0.18);
     setTimeout(() => playTone((freqs[tier] || 660) * 1.5, 0.15, 'sine', 0.1), 60);
   }
+
   function playRingSound() {
     playTone(320, 0.12, 'sawtooth', 0.12);
     setTimeout(() => playTone(520, 0.18, 'sine', 0.15), 90);
   }
+
   function playObstacleHitSound() {
     playTone(140, 0.25, 'square', 0.2);
     setTimeout(() => playTone(90, 0.2, 'sawtooth', 0.15), 60);
   }
+
   function vibrate(pattern) {
     if (navigator.vibrate) {
-      try { navigator.vibrate(pattern); } catch (e) { /* ignore unsupported */ }
+      try { navigator.vibrate(pattern); } catch (e) {}
     }
   }
 
