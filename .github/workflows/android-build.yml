@@ -28,10 +28,10 @@ jobs:
           npm install
           npm install --no-save three@0.128.0
 
-      - name: Prepare offline Three.js and GLTF loader
+      - name: Prepare offline Three.js
         run: |
           test -f www/index.html
-          test "$(wc -c < www/index.html)" -gt 130000
+          test "$(wc -c < www/index.html)" -gt 145000
           cp node_modules/three/build/three.min.js www/three.min.js
           cp node_modules/three/examples/js/loaders/GLTFLoader.js www/GLTFLoader.js
           sed -i 's|https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js|three.min.js|g' www/index.html
@@ -40,27 +40,24 @@ jobs:
           grep -q 'src="three.min.js"' www/index.html
           grep -q 'src="GLTFLoader.js"' www/index.html
 
-      - name: Prepare Kenney 3D city assets
+      - name: Extract Kenney 3D assets
         run: |
+          set -e
           mkdir -p www/assets/kenney/cars www/assets/kenney/city www/assets/kenney/roads
 
-          if [ -f assets/kenney/kenney_car-kit.zip ]; then
-            unzip -j -o assets/kenney/kenney_car-kit.zip               "Models/GLB format/sedan.glb"               "Models/GLB format/suv.glb"               "Models/GLB format/taxi.glb"               "Models/GLB format/van.glb"               "Models/GLB format/delivery.glb"               "Models/GLB format/police.glb"               -d www/assets/kenney/cars
-          else
-            echo "Kenney Car Kit absent: la ville utilisera les voitures de secours."
-          fi
+          test -f assets/kenney/kenney_car-kit.zip
+          test -f assets/kenney/kenney_city-kit-suburban_20.zip
+          test -f assets/kenney/kenney_city-kit-roads.zip
 
-          if [ -f assets/kenney/kenney_city-kit-suburban_20.zip ]; then
-            unzip -j -o assets/kenney/kenney_city-kit-suburban_20.zip               "Models/GLB format/building-type-a.glb"               "Models/GLB format/building-type-c.glb"               "Models/GLB format/building-type-f.glb"               "Models/GLB format/building-type-h.glb"               "Models/GLB format/building-type-n.glb"               "Models/GLB format/building-type-t.glb"               -d www/assets/kenney/city
-          else
-            echo "Kenney Suburban Kit absent: le quartier résidentiel utilisera les bâtiments de secours."
-          fi
+          unzip -j -o assets/kenney/kenney_car-kit.zip             "Models/GLB format/sedan.glb"             "Models/GLB format/sedan-sports.glb"             "Models/GLB format/suv.glb"             "Models/GLB format/taxi.glb"             "Models/GLB format/van.glb"             "Models/GLB format/delivery.glb"             "Models/GLB format/police.glb"             "Models/GLB format/ambulance.glb"             -d www/assets/kenney/cars
 
-          if [ -f assets/kenney/kenney_city-kit-roads.zip ]; then
-            unzip -j -o assets/kenney/kenney_city-kit-roads.zip               "Models/GLB format/light-curved.glb"               "Models/GLB format/traffic-light.glb"               "Models/GLB format/road-sign-stop.glb"               -d www/assets/kenney/roads
-          else
-            echo "Kenney Roads Kit absent: mobilier urbain 3D désactivé."
-          fi
+          unzip -j -o assets/kenney/kenney_city-kit-suburban_20.zip             "Models/GLB format/building-type-a.glb"             "Models/GLB format/building-type-c.glb"             "Models/GLB format/building-type-f.glb"             "Models/GLB format/building-type-h.glb"             "Models/GLB format/building-type-n.glb"             "Models/GLB format/building-type-t.glb"             "Models/GLB format/tree-large.glb"             "Models/GLB format/tree-small.glb"             -d www/assets/kenney/city
+
+          unzip -j -o assets/kenney/kenney_city-kit-roads.zip             "Models/GLB format/light-curved.glb"             "Models/GLB format/traffic-light.glb"             "Models/GLB format/road-sign-stop.glb"             "Models/GLB format/road-bridge.glb"             "Models/GLB format/bridge-pillar-wide.glb"             -d www/assets/kenney/roads
+
+          test -s www/assets/kenney/cars/sedan.glb
+          test -s www/assets/kenney/cars/taxi.glb
+          test -s www/assets/kenney/roads/traffic-light.glb
 
       - name: Create Android project
         run: npx cap add android
