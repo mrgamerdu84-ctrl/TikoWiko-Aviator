@@ -3372,26 +3372,68 @@
   const joystickThumb = document.getElementById('joystickThumb');
   let joyActive = false, joyId = null;
 
+  const JOY_DEADZONE = 0.16;
+  const JOY_EXPO = 1.55;
+  const JOY_TRAVEL = 0.68;
+
+  function curveJoy(v) {
+    const sign = Math.sign(v);
+    const a = Math.abs(v);
+    if (a <= JOY_DEADZONE) return 0;
+    const n = (a - JOY_DEADZONE) / (1 - JOY_DEADZONE);
+    return sign * Math.pow(THREE.MathUtils.clamp(n, 0, 1), JOY_EXPO);
+  }
+
+  function centerJoystickThumb() {
+    const rect = joystickZone.getBoundingClientRect();
+    const thumbRect = joystickThumb.getBoundingClientRect();
+    joystickThumb.style.left = Math.max(0, (rect.width - thumbRect.width) / 2) + 'px';
+    joystickThumb.style.top = Math.max(0, (rect.height - thumbRect.height) / 2) + 'px';
+  }
+
   function setJoyFromEvent(clientX, clientY) {
     const rect = joystickZone.getBoundingClientRect();
+    const thumbRect = joystickThumb.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
+
     let dx = clientX - cx;
     let dy = clientY - cy;
-    const max = rect.width / 2;
-    const dist = Math.min(Math.hypot(dx, dy), max);
-    const angle = Math.atan2(dy, dx);
+    const max = Math.max(1, (Math.min(rect.width, rect.height) - Math.max(thumbRect.width, thumbRect.height)) * 0.5 * JOY_TRAVEL + 20);
+    const rawDist = Math.hypot(dx, dy);
+    const dist = Math.min(rawDist, max);
+    const angle = rawDist > 0.001 ? Math.atan2(dy, dx) : 0;
+
     dx = Math.cos(angle) * dist;
     dy = Math.sin(angle) * dist;
-    joystickThumb.style.left = (37 + dx) + 'px';
-    joystickThumb.style.top = (37 + dy) + 'px';
-    keyMap.yaw = -dx / max;
-    keyMap.pitch = -dy / max;
+
+    const centerLeft = (rect.width - thumbRect.width) / 2;
+    const centerTop = (rect.height - thumbRect.height) / 2;
+    joystickThumb.style.left = (centerLeft + dx) + 'px';
+    joystickThumb.style.top = (centerTop + dy) + 'px';
+
+    const nx = THREE.MathUtils.clamp(dx / max, -1, 1);
+    const ny = THREE.MathUtils.clamp(dy / max, -1, 1);
+    keyMap.yaw = -curveJoy(nx);
+    keyMap.pitch = -curveJoy(ny);
   }
+
   function resetJoy() {
-    joystickThumb.style.left = '37px';
-    joystickThumb.style.top = '37px';
-    keyMap.yaw = 0; keyMap.pitch = 0;
+    centerJoystickThumb();
+    keyMap.yaw = 0;
+    keyMap.pitch = 0;
+  }
+
+  function resetFlightControls() {
+    joyActive = false;
+    joyId = null;
+    keyMap.yaw = 0;
+    keyMap.pitch = 0;
+    smoothYaw = 0;
+    smoothPitch = 0;
+    input.boost = false;
+    input.fire = false;
+    centerJoystickThumb();
   }
   joystickZone.addEventListener('touchstart', (e) => {
     joyActive = true;
@@ -3404,7 +3446,12 @@
     for (const t of e.changedTouches) if (t.identifier === joyId) setJoyFromEvent(t.clientX, t.clientY);
   }, { passive: false });
   window.addEventListener('touchend', (e) => {
-    for (const t of e.changedTouches) if (t.identifier === joyId) { joyActive = false; resetJoy(); }
+    for (const t of e.changedTouches) if (t.identifier === joyId) { joyActive = false; joyId = null; resetJoy(); }
+  });
+  window.addEventListener('touchcancel', () => {
+    joyActive = false;
+    joyId = null;
+    resetJoy();
   });
 
   const boostBtn = document.getElementById('boostBtn');
@@ -3928,6 +3975,7 @@
 
   function startGame() {
     startScreen.style.display = 'none';
+    resetFlightControls();
     rollRunMissions();
     boostFuel = fuelMax();
     fuelFill.style.width = '100%';
@@ -3954,6 +4002,7 @@
 
   function resetRun() {
     clearRunMissions();
+    resetFlightControls();
     score = 0;
     runDiamonds = 0;
     if (diamondCount) diamondCount.textContent = '0';
@@ -4424,7 +4473,7 @@
       // wind gusts: occasional lateral push you have to correct for
       if (windGustActive > 0) {
         windGustActive -= dt;
-        glider.position.addScaledVector(windGustDir, 6 * dt);
+        glider.position.addScaledVector(windGustDir, 3.8 * dt);
         if (windGustActive <= 0) {
           windIndicator.classList.remove('show');
         }
@@ -4450,18 +4499,27 @@
         }
       }
 
-      // raw input drives the actual flight response (turning, climbing)
-      // so it feels immediate; a separately smoothed copy only drives the
-      // cosmetic bank/tilt animation so the plane still looks weighty
-      const inertia = 1 - Math.pow(0.0002, dt);
-      smoothYaw = THREE.MathUtils.lerp(smoothYaw, keyMap.yaw, inertia);
-      smoothPitch = THREE.MathUtils.lerp(smoothPitch, keyMap.pitch, inertia);
-      const yawInput = keyMap.yaw;
-      const pitchInput = keyMap.pitch;
-      const bankLerp = 1 - Math.pow(0.0005, dt);
-      glider.rotation.y += yawInput * 2.25 * dt;
-      glider.rotation.z = THREE.MathUtils.lerp(glider.rotation.z, smoothYaw * 0.78, bankLerp);
-      glider.rotation.x = THREE.MathUtils.lerp(glider.rotation.x, smoothPitch * 0.58, bankLerp);
+      // Assisted flight control: progressive steering + smoothing makes
+      // small joystick movements precise while keeping full turns available.
+      const steerResponse = 1 - Math.exp(-5.0 * dt);
+      const returnResponse = 1 - Math.exp(-6.4 * dt);
+      const yawResponse = Math.abs(keyMap.yaw) > 0.001 ? steerResponse : returnResponse;
+      const pitchResponse = Math.abs(keyMap.pitch) > 0.001 ? steerResponse : returnResponse;
+
+      smoothYaw = THREE.MathUtils.lerp(smoothYaw, keyMap.yaw, yawResponse);
+      smoothPitch = THREE.MathUtils.lerp(smoothPitch, keyMap.pitch, pitchResponse);
+
+      // Slightly reduce steering authority at boost speed so the plane does
+      // not whip around uncontrollably when moving fastest.
+      const speedAssist = THREE.MathUtils.clamp((speed - baseSpeed) / Math.max(1, boostSpeed - baseSpeed), 0, 1);
+      const yawRate = THREE.MathUtils.lerp(1.48, 1.18, speedAssist);
+      const bankTarget = smoothYaw * 0.52;
+      const pitchTarget = smoothPitch * 0.36;
+      const attitudeLerp = 1 - Math.exp(-5.6 * dt);
+
+      glider.rotation.y += smoothYaw * yawRate * dt;
+      glider.rotation.z = THREE.MathUtils.lerp(glider.rotation.z, bankTarget, attitudeLerp);
+      glider.rotation.x = THREE.MathUtils.lerp(glider.rotation.x, pitchTarget, attitudeLerp);
       updateDirectionIndicator();
 
       const boosting = input.boost && boostFuel > 0;
@@ -4527,7 +4585,7 @@
 
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(glider.quaternion);
       glider.position.addScaledVector(forward, speed * dt);
-      glider.position.y += pitchInput * climbRate() * dt;
+      glider.position.y += smoothPitch * climbRate() * 0.78 * dt;
 
       // wind thermals: standing inside one lifts you fast, for free — only
       // within the column's actual visible height (0–70m), not the whole sky
